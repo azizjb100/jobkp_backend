@@ -6,64 +6,62 @@ class JobService {
      * Mengambil daftar pekerjaan dengan filter.
      */
     async getJobs(filters) {
-        const { startDate, endDate, status, closeStatus, branch, technician } = filters;
+        const { startDate, endDate, status, closeStatus, branch, technician, search } = filters;
 
+        // [PERBAIKAN] Query utama sekarang menggunakan JOIN
         let sql = `
         SELECT 
-          jb_nomor,
-          DATE_FORMAT(jb_tanggal, '%d-%m-%Y %T') AS jb_tanggal,
+          jb.jb_nomor,
+          DATE_FORMAT(jb.jb_tanggal, '%d-%m-%Y %T') AS jb_tanggal,
           CONCAT(
-            jb_cabang, ' ',
-            IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_user LIMIT 1), '-')
+            jb.jb_cabang, ' ',
+            IFNULL(u_peminta.user_nama, '-')
           ) AS jb_cabang,
-          jb_divisi,
-          jb_bagian,
-          jb_lokasi,
-          jb_jenis,
-          jb_ket,
-          IF(jb_urgent=0,'Urgent','Top Urgent') AS jb_kepentingan,
-
+          jb.jb_divisi,
+          jb.jb_bagian,
+          jb.jb_lokasi,
+          jb.jb_jenis,
+          jb.jb_ket,
+          IF(jb.jb_urgent=0,'Urgent','Top Urgent') AS jb_kepentingan,
           CONCAT(
-            IF(jb_konfirga=0,'Belum ','Sudah '),
-            IFNULL(DATE_FORMAT(jb_tgl_konfirga, '%d-%m-%Y %T'),' '), ' ',
-            IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_konfirga_nama LIMIT 1), '')
+            IF(jb.jb_konfirga=0,'Belum ','Sudah '),
+            IFNULL(DATE_FORMAT(jb.jb_tgl_konfirga, '%d-%m-%Y %T'),' '), ' ',
+            IFNULL(u_konfirga.user_nama, '')
           ) AS jb_konfir_ga,
-
           CONCAT(
-            IFNULL(DATE_FORMAT(jb_jadwal1,'%d-%m-%Y'),' - '),
+            IFNULL(DATE_FORMAT(jb.jb_jadwal1,'%d-%m-%Y'),' - '),
             ' s.d ',
-            IFNULL(DATE_FORMAT(jb_jadwal2,'%d-%m-%Y'),' - ')
+            IFNULL(DATE_FORMAT(jb.jb_jadwal2,'%d-%m-%Y'),' - ')
           ) AS jb_jadwal_pengerjaan,
-
-          IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_teknisi LIMIT 1), '-') AS jb_teknisi,
-          IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_teknisi2 LIMIT 1), '-') AS jb_teknisi_bantu,
-
+          IFNULL(u_teknisi.user_nama, '-') AS jb_teknisi,
+          IFNULL(u_teknisi2.user_nama, '-') AS jb_teknisi_bantu,
           CONCAT(
-            IF(jb_konfirteknisi=0,'Belum ','Sudah '),
-            IFNULL(DATE_FORMAT(jb_tgl_konfirteknisi, '%d-%m-%Y %T'),' '), ' ',
-            IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_konfirteknisi_nama LIMIT 1), '')
+            IF(jb.jb_konfirteknisi=0,'Belum ','Sudah '),
+            IFNULL(DATE_FORMAT(jb.jb_tgl_konfirteknisi, '%d-%m-%Y %T'),' '), ' ',
+            IFNULL(u_konfirtek.user_nama, '')
           ) AS jb_konfir_teknisi,
-
-          IF(jb_pengajuan=0,'Tidak','Ya') AS jb_pengajuan_barang,
-
-          IFNULL(
-            (SELECT spp_nomor FROM kencanaprint.tsparepart_pengajuan_hdr WHERE spp_job=jb_nomor LIMIT 1),
-            '-'
-          ) AS jb_sparepart_gudang,
-
-          jb_ket_teknisi AS jb_ket_proses,
-
+          IF(jb.jb_pengajuan=0,'Tidak','Ya') AS jb_pengajuan_barang,
+          IFNULL(spp.spp_nomor, '-') AS jb_sparepart_gudang,
+          jb.jb_ket_teknisi AS jb_ket_proses,
           CONCAT(
-            IF(jb_selesai=0,'Belum ',
-               IF(jb_selesai=2,'Proses ','Sudah ')),
-            IFNULL(DATE_FORMAT(jb_tgl_selesai,'%d-%m-%Y %T'),' ')
+            IF(jb.jb_selesai=0,'Belum ',
+               IF(jb.jb_selesai=2,'Proses ','Sudah ')),
+            IFNULL(DATE_FORMAT(jb.jb_tgl_selesai,'%d-%m-%Y %T'),' ')
           ) AS jb_selesai,
-
-          IF(jb_tgl_close IS NULL,'Belum',
-            CONCAT('Sudah ', DATE_FORMAT(jb_tgl_close,'%d-%m-%Y %T'))
+          IF(jb.jb_tgl_close IS NULL,'Belum',
+            CONCAT('Sudah ', DATE_FORMAT(jb.jb_tgl_close,'%d-%m-%Y %T'))
           ) AS jb_close
-
-        FROM bsmcabang.job_butuh_hdr
+        
+        FROM bsmcabang.job_butuh_hdr AS jb
+        
+        /* [PERBAIKAN] Mengganti semua subquery dengan LEFT JOIN */
+        LEFT JOIN bsmcabang.job_user AS u_peminta ON jb.jb_user = u_peminta.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_konfirga ON jb.jb_konfirga_nama = u_konfirga.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_teknisi ON jb.jb_teknisi = u_teknisi.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_teknisi2 ON jb.jb_teknisi2 = u_teknisi2.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_konfirtek ON jb.jb_konfirteknisi_nama = u_konfirtek.user_kode
+        LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr AS spp ON jb.jb_nomor = spp.spp_job
+        
         WHERE 1=1
         `;
 
@@ -71,47 +69,59 @@ class JobService {
 
         // Filter tanggal
         if (startDate && endDate) {
-            sql += ` AND DATE(jb_tanggal) BETWEEN ? AND ?`;
+            sql += ` AND DATE(jb.jb_tanggal) BETWEEN ? AND ?`;
             params.push(startDate, endDate);
         }
 
         // Filter status
-        if (status) {
+        if (status && status.toUpperCase() !== 'ALL') {
             let statusValue = 0;
             if (status.toUpperCase() === 'PROSES') statusValue = 2;
             if (status.toUpperCase() === 'SELESAI') statusValue = 1;
-            sql += ' AND jb_selesai = ?';
+            sql += ' AND jb.jb_selesai = ?';
             params.push(statusValue);
         }
 
         // Filter close
-        if (closeStatus) {
+        if (closeStatus && closeStatus.toUpperCase() !== 'ALL') {
             if (closeStatus.toUpperCase() === 'NOT CLOSE') {
-                sql += ' AND jb_tgl_close IS NULL';
+                sql += ' AND jb.jb_tgl_close IS NULL';
             } else if (closeStatus.toUpperCase() === 'CLOSE') {
-                sql += ' AND jb_tgl_close IS NOT NULL';
+                sql += ' AND jb.jb_tgl_close IS NOT NULL';
             }
         }
 
         // Filter cabang
         if (branch && branch.toUpperCase() !== 'ALL') {
-            sql += ' AND jb_cabang = ?';
+            sql += ' AND jb.jb_cabang = ?';
             params.push(branch);
         }
 
         // Filter teknisi
         if (technician && technician.toUpperCase() !== 'ALL') {
-            sql += ' AND (jb_konfirga = 0 OR jb_teknisi = ?)';
+            // [PERBAIKAN] Mengganti logika OR yang salah menjadi filter teknisi yang benar
+            sql += ' AND jb.jb_teknisi = ?';
             params.push(technician);
         }
+        
+        // Filter search
+        if (search && search.trim() !== '') {
+          sql += ` AND (
+            jb.jb_nomor LIKE ? OR 
+            jb.jb_lokasi LIKE ? OR
+            jb.jb_divisi LIKE ?
+          )`;
+          params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+        }
 
-        sql += ` ORDER BY jb_tanggal DESC`;
+        sql += ` ORDER BY jb.jb_tanggal DESC`;
 
         const [jobs] = await pool.query(sql, params);
         return jobs;
     }
 
     async getJobById(id) {
+        // ... (Fungsi ini sudah benar)
         const headerQuery = `
             SELECT 
                 h.*, 
@@ -146,19 +156,22 @@ class JobService {
     }
 
     async updateJobByGa(id, data, userId) {
+        // ... (Fungsi ini sudah benar)
         const sql = `
             UPDATE bsmcabang.job_butuh_hdr SET 
                 jb_konfirga = ?, 
                 jb_konfirga_nama = ?, 
-                jb_tgl_konfirga = IFNULL(jb_tgl_konfirga, NOW()),
+                jb_tgl_konfirga = IF(jb_tgl_konfirga IS NULL AND ? = 1, NOW(), jb_tgl_konfirga),
                 jb_teknisi = ?, 
                 jb_jadwal1 = ?, 
                 jb_jadwal2 = ?
             WHERE jb_nomor = ?
         `;
+        const konfirGA = data.konfirGA ? 1 : 0;
         return pool.query(sql, [
-            data.konfirGA ? 1 : 0,
+            konfirGA,
             userId,
+            konfirGA, // Parameter untuk IF
             data.teknisiId,
             data.jadwal1 || null,
             data.jadwal2 || null,
@@ -166,10 +179,8 @@ class JobService {
         ]);
     }
 
-    /**
-     * Update dari sisi Teknisi
-     */
     async updateJobByTechnician(id, data, userId) {
+        // ... (Fungsi ini sudah benar)
         const connection = await pool.getConnection();
         try {
             await connection.beginTransaction();
@@ -186,36 +197,22 @@ class JobService {
                     jb_teknisi2 = ?
                 WHERE jb_nomor = ?
             `;
-            
             const konfirTeknisi = data.konfirTeknisi ? 1 : 0;
-            
             await connection.query(headerSql, [
                 konfirTeknisi,
                 userId,
-                konfirTeknisi, // Parameter untuk IF jb_tgl_konfirteknisi
+                konfirTeknisi,
                 data.pengajuanSparepart ? 1 : 0,
                 data.status,
                 data.keteranganTeknisi,
-                data.status === 1 ? new Date() : null, // Set tgl selesai jika status=1
-                
-                // [PERBAIKAN DI SINI]
-                // Gunakan '??' (nullish coalescing) BUKAN '||' (OR).
-                // '|| null' mengubah string kosong ('') menjadi null.
-                // '??' akan tetap mengirim string kosong ('') jika itu string kosong,
-                // dan hanya mengubah 'null' atau 'undefined' menjadi string kosong.
-                data.teknisiBantuId ?? '', 
-                
+                data.status === 1 ? new Date() : null,
+                data.teknisiBantuId ?? '',
                 id
             ]);
 
-            // [PERBAIKAN KEDUA] Logika 'delete details' Anda salah.
-            // Anda tidak boleh menghapus detail jika 'pengajuanSparepart' false.
-            // Anda HANYA boleh mengubah detail jika 'pengajuanSparepart' true.
             if (data.pengajuanSparepart === true) {
-                // Hapus detail lama HANYA jika pengajuan dicentang
                 await connection.query('DELETE FROM bsmcabang.job_butuh_dtl WHERE jbd_nomor = ?', [id]);
 
-                // Masukkan detail baru
                 if (data.details && data.details.length > 0) {
                     const detailValues = data.details.map(d => [id, d.nama, d.satuan, d.qty]);
                     await connection.query(
@@ -224,22 +221,19 @@ class JobService {
                     );
                 }
             }
-            // Jika 'pengajuanSparepart' false, kita tidak melakukan apa-apa pada tabel detail.
 
             await connection.commit();
-            return { success: true, message: 'Data berhasil diperbarui.' }; // Kirim balasan sukses
+            return { success: true, message: 'Data berhasil diperbarui.' };
         } catch (error) {
             await connection.rollback();
-            throw error; // Lempar error agar controller bisa menangkap
+            throw error;
         } finally {
             connection.release();
         }
     }
-    
-    /**
-     * Mengambil daftar teknisi
-     */
+
     async getTechnicians() {
+        // ... (Fungsi ini sudah benar)
         const sql = `
             SELECT user_kode, user_nama 
             FROM bsmcabang.job_user 
@@ -250,5 +244,6 @@ class JobService {
         return technicians;
     }
 }
+
 
 module.exports = new JobService();

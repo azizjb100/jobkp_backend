@@ -117,7 +117,6 @@ exports.updatePerbaikan = async (req, res) => {
       });
     }
     
-    // 4. Panggil service
     const result = await perbaikanService.updatePerbaikan(nomor, data);
 
     // 5. Cek apakah ada baris yang benar-benar ter-update
@@ -145,4 +144,53 @@ exports.updatePerbaikan = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+exports.getOne = async (req, res) => {
+  try {
+    const { nomor } = req.params; 
+    const result = await perbaikanService.getPerbaikanByNomor(nomor);
+    
+    if (!result.success) {
+      return res.status(404).send(result);
+    }
+    
+    // [TAMBAHKAN INIS] Matikan cache untuk respons API
+    res.set('Cache-Control', 'no-store');
+    
+    // Kirim 200 OK jika berhasil
+    res.status(200).send(result);
+    
+  } catch (error) {
+    res.status(500).send({ success: false, message: error.message });
+  }
+};
+
+exports.closeJob = async (req, res) => {
+  try {
+    // [FIX] Baca 'jb_nomor' dari body, sesuai kiriman Flutter
+    const { jb_nomor } = req.body; 
+    
+    // [FIX] Cek variabel yang benar
+    if (!jb_nomor) { 
+      return res.status(400).send({ 
+        success: false, 
+        message: 'Nomor tidak boleh kosong' 
+      });
+    }
+
+    // [FIX] Kirim variabel yang benar ke service
+    const result = await perbaikanService.closePerbaikan(jb_nomor); 
+    
+    if (!result.success) {
+      // Jika nomor tidak ada, service akan kirim 404
+      return res.status(404).send(result);
+    }
+    
+    // Sukses
+    res.status(200).send(result);
+
+  } catch (error) {
+    res.status(500).send({ success: false, message: error.message });
+  }
 };

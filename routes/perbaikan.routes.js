@@ -15,4 +15,8 @@ router.put(
   perbaikanController.updatePerbaikan // <-- Panggil controller baru
 );
 
+router.get('/:nomor', perbaikanController.getOne);
+
+router.post('/close', perbaikanController.closeJob);
+
 module.exports = router;
