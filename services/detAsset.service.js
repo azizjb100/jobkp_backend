@@ -165,8 +165,9 @@ const getAllAssets = async (filters) => {
 
   // Filter Pencarian Teks
   if (search) {
-    query += ` AND (jb.jb_nomor LIKE ? OR jb.jb_lokasi LIKE ? OR jb.jb_divisi LIKE ?)`;
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    query += ` AND (jb.jb_nomor LIKE ? OR jb.jb_lokasi LIKE ? OR jb.jb_divisi LIKE ? 
+      OR jb.jb_ket LIKE ?)`;
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
   // Filter user_kode

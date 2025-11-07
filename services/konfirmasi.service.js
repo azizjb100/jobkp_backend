@@ -109,9 +109,10 @@ class JobService {
           sql += ` AND (
             jb.jb_nomor LIKE ? OR 
             jb.jb_lokasi LIKE ? OR
-            jb.jb_divisi LIKE ?
+            jb.jb_divisi LIKE ? OR
+            jb.jb_ket LIKE ?
           )`;
-          params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+          params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
         }
 
         sql += ` ORDER BY jb.jb_tanggal DESC`;

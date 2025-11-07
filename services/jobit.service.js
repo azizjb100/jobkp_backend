@@ -41,7 +41,8 @@ const getFormData = async () => {
  * [PERBAIKAN: Menggunakan LEFT JOIN untuk performa]
  */
 const getAllJobs = async (filters) => {
-  const { startDate, endDate, cabang, it_staff, status, user_kode } = filters;
+  const { startDate, endDate, cabang, it_staff, status, user_kode, search
+   } = filters;
 
   let params = [startDate, endDate];
   let sql = `
@@ -85,6 +86,16 @@ const getAllJobs = async (filters) => {
     params.push(user_kode);
   }
   
+  if (search && search.trim() !== '') {
+          sql += ` AND (
+            jb.jb_nomor LIKE ? OR 
+            jb.jb_lokasi LIKE ? OR
+            jb.jb_divisi LIKE ? OR
+            jb.jb_ket LIKE ?
+          )`;
+          params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+        }
+
   sql += ' ORDER BY jb.jb_tanggal DESC';
   
   const [rows] = await pool.query(sql, params);

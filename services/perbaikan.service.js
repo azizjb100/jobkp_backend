@@ -188,8 +188,6 @@ const updatePerbaikan = async (nomor, data) => {
     jb_urgent
   } = data;
 
-  // 2. Siapkan query UPDATE
-  // (Pastikan nama tabel 'job_butuh_hdr' sudah benar)
   const updateSql = `
     UPDATE job_butuh_hdr
     SET

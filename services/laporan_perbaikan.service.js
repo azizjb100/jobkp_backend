@@ -9,69 +9,97 @@ class LaporanService {
      * Ini adalah replikasi dari logika `imgrefreshClick` di Delphi.
      * @param {object} filters - Obyek filter dari query URL.
      */
-    async getPerbaikanReport(filters) {
-        const { startDate, endDate, status, branch, userId } = filters;
+    // ... (di dalam class LaporanService Anda)
 
-        // Query ini meniru CONCAT panjang dari Delphi untuk membuat kolom "Detail"
-        let sql = `
-            SELECT 
-                jb_nomor AS Nomor,
-                CONCAT(
-                    'Tanggal: ', DATE_FORMAT(jb_tanggal, '%d-%m-%Y %T'), '\\r\\n',
-                    'User: ', jb_Cabang, ' ', IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_user), '-'), '\\r\\n',
-                    'Divisi: ', IFNULL(jb_divisi, ''), '\\r\\n',
-                    'Bagian: ', IFNULL(jb_bagian, ''), '\\r\\n',
-                    'Kerusakan: ', IFNULL(jb_lokasi, ''), '\\r\\n',
-                    'Jenis: ', IFNULL(jb_jenis, ''), '\\r\\n',
-                    'Keterangan: ', IFNULL(jb_ket, ''), '\\r\\n',
-                    'Kepentingan: ', IF(jb_urgent=0,'Urgent','Top Urgent'), '\\r\\n',
-                    'Dikonfirmasi GA: ', IF(jb_konfirga=0,'Belum ','Sudah '), IFNULL(DATE_FORMAT(jb_tgl_konfirga, '%d-%m-%Y %T'),' '), ' ', IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_konfirga_nama), ''), '\\r\\n',
-                    'Jadwal Pengerjaan: ', IFNULL(DATE_FORMAT(jb_jadwal1,'%d-%m-%Y'),' - '), ' s.d ', IFNULL(DATE_FORMAT(jb_jadwal2,'%d-%m-%Y'),' - '), '\\r\\n',
-                    'Teknisi: ', IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_teknisi), '-'), '\\r\\n',
-                    'Selesai dikerjakan: ', IF(jb_Selesai=0,'Belum ',IF(jb_Selesai=2,'Proses ','Sudah ')), IFNULL(DATE_FORMAT(jb_tgl_selesai,'%d-%m-%Y %T'),' '), '\\r\\n',
-                    'Close: ', IF(jb_tgl_close IS NULL,'Belum ', CONCAT('Sudah ', DATE_FORMAT(jb_tgl_close,'%d-%m-%Y %T')))
-                ) AS Detail
-            FROM bsmcabang.job_butuh_hdr
-            WHERE DATE(jb_tanggal) BETWEEN ? AND ?
-        `;
-        const params = [startDate, endDate];
-
-        // Menerapkan filter status, meniru logika RadioButton
-        if (status) {
-            switch (status.toUpperCase()) {
-                case 'BELUM':
-                    sql += ' AND jb_selesai = 0';
-                    break;
-                case 'SELESAI':
-                    sql += ' AND jb_selesai = 1';
-                    break;
-                case 'PROSES':
-                    sql += ' AND jb_selesai = 2';
-                    break;
-                case 'BELUM_SELESAI':
-                    sql += ' AND (jb_selesai = 0 OR jb_selesai = 2)';
-                    break;
-                // 'ALL' tidak melakukan apa-apa
-            }
-        }
+async getPerbaikanReport(filters) {
+    // [PERBAIKAN 1] Ambil 'search' dari filters
+    const { startDate, endDate, status, branch, userId, search } = filters;
+    let sql = `
+        SELECT 
+            jb.jb_nomor AS Nomor,
+            CONCAT(
+                'Tanggal: ', DATE_FORMAT(jb.jb_tanggal, '%d-%m-%Y %T'), '\\r\\n',
+                
+                /* Menggunakan alias join 'u_peminta' (mengganti subquery) */
+                'User: ', jb.jb_cabang, ' ', IFNULL(u_peminta.user_nama, '-'), '\\r\\n', 
+                
+                'Divisi: ', IFNULL(jb.jb_divisi, ''), '\\r\\n',
+                'Bagian: ', IFNULL(jb.jb_bagian, ''), '\\r\\n',
+                'Kerusakan: ', IFNULL(jb.jb_lokasi, ''), '\\r\\n',
+                'Jenis: ', IFNULL(jb.jb_jenis, ''), '\\r\\n',
+                'Keterangan: ', IFNULL(jb.jb_ket, ''), '\\r\\n',
+                'Kepentingan: ', IF(jb.jb_urgent=0,'Urgent','Top Urgent'), '\\r\\n',
+                
+                /* Menggunakan alias join 'u_konfirga' (mengganti subquery) */
+                'Dikonfirmasi GA: ', IF(jb.jb_konfirga=0,'Belum ','Sudah '), IFNULL(DATE_FORMAT(jb.jb_tgl_konfirga, '%d-%m-%Y %T'),' '), ' ', IFNULL(u_konfirga.user_nama, ''), '\\r\\n',
+                
+                'Jadwal Pengerjaan: ', IFNULL(DATE_FORMAT(jb.jb_jadwal1,'%d-%m-%Y'),' - '), ' s.d ', IFNULL(DATE_FORMAT(jb.jb_jadwal2,'%d-%m-%Y'),' - '), '\\r\\n',
+                
+                /* Menggunakan alias join 'u_teknisi' (mengganti subquery) */
+                'Teknisi: ', IFNULL(u_teknisi.user_nama, '-'), '\\r\\n',
+                
+                /* [FIX TYPO] jb_Selesai -> jb.jb_selesai */
+                'Selesai dikerjakan: ', IF(jb.jb_selesai=0,'Belum ',IF(jb.jb_selesai=2,'Proses ','Sudah ')), IFNULL(DATE_FORMAT(jb.jb_tgl_selesai,'%d-%m-%Y %T'),' '), '\\r\\n',
+                
+                'Close: ', IF(jb.jb_tgl_close IS NULL,'Belum ', CONCAT('Sudah ', DATE_FORMAT(jb.jb_tgl_close,'%d-%m-%Y %T')))
+            ) AS Detail
+        FROM bsmcabang.job_butuh_hdr AS jb /* <-- [FIX] Tambahkan alias 'AS jb' */
         
-        // Filter cabang
-        if (branch && branch.toUpperCase() !== 'ALL') {
-            sql += ' AND jb_cabang = ?';
-            params.push(branch);
+        /* [FIX] Tambahkan JOINs */
+        LEFT JOIN bsmcabang.job_user AS u_peminta ON jb.jb_user = u_peminta.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_konfirga ON jb.jb_konfirga_nama = u_konfirga.user_kode
+        LEFT JOIN bsmcabang.job_user AS u_teknisi ON jb.jb_teknisi = u_teknisi.user_kode
+
+        WHERE DATE(jb.jb_tanggal) BETWEEN ? AND ?
+    `;
+    const params = [startDate, endDate];
+
+    // Menerapkan filter status
+    if (status) {
+        switch (status.toUpperCase()) {
+            case 'BELUM':
+                sql += ' AND jb.jb_selesai = 0'; // [FIX] Tambahkan 'jb.'
+                break;
+            case 'SELESAI':
+                sql += ' AND jb.jb_selesai = 1'; // [FIX] Tambahkan 'jb.'
+                break;
+            case 'PROSES':
+                sql += ' AND jb.jb_selesai = 2'; // [FIX] Tambahkan 'jb.'
+                break;
+            case 'BELUM_SELESAI':
+                sql += ' AND (jb.jb_selesai = 0 OR jb.jb_selesai = 2)'; // [FIX] Tambahkan 'jb.'
+                break;
         }
-
-        // Filter user peminta
-        if (userId && userId.toUpperCase() !== 'ALL') {
-            sql += ' AND jb_user = ?';
-            params.push(userId);
-        }
-
-        sql += ' ORDER BY jb_tanggal DESC';
-
-        const [rows] = await pool.query(sql, params);
-        return rows;
     }
+    
+    // Filter cabang
+    if (branch && branch.toUpperCase() !== 'ALL') {
+        sql += ' AND jb.jb_cabang = ?'; // [FIX] Tambahkan 'jb.'
+        params.push(branch);
+    }
+
+    // Filter user peminta
+    if (userId && userId.toUpperCase() !== 'ALL') {
+        sql += ' AND jb.jb_user = ?'; // [FIX] Tambahkan 'jb.'
+        params.push(userId);
+    }
+
+    // Filter search (Blok ini sekarang akan berfungsi karena 'jb' sudah didefinisikan)
+    if (search && search.trim() !== '') {
+      sql += ` AND (
+        jb.jb_nomor LIKE ? OR 
+        jb.jb_lokasi LIKE ? OR
+        jb.jb_divisi LIKE ? OR
+        jb.jb_ket LIKE ?
+      )`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    sql += ' ORDER BY jb.jb_tanggal DESC'; // [FIX] Tambahkan 'jb.'
+
+    const [rows] = await pool.query(sql, params);
+    return rows;
+}
 
     /**
      * Mengambil daftar user untuk dropdown filter.

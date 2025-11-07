@@ -5,8 +5,9 @@ const { pool } = require('../config/db.config');
 class PengajuanService {
 
     async getPengajuanList(filters) {
-        // ... (Fungsi ini sudah benar, tidak diubah)
-        const { startDate, endDate, status } = filters;
+        // [PERBAIKAN 1] Ambil 'search' dari filters
+        const { startDate, endDate, status, search } = filters;
+
         let sql = `
             SELECT 
                 spp_nomor AS Nomor,
@@ -21,14 +22,30 @@ class PengajuanService {
             WHERE DATE(h.spp_tanggal) BETWEEN ? AND ?
         `;
         const params = [startDate, endDate];
+
         if (status && status.toUpperCase() !== 'ALL') {
             sql += ' AND h.spp_status = ?';
             params.push(status);
         }
+
+        // [PERBAIKAN 2] Tambahkan logika filter pencarian
+        if (search && search.trim() !== '') {
+            sql += ` AND (
+                h.spp_nomor LIKE ? OR 
+                h.spp_job LIKE ? OR 
+                h.spp_ket LIKE ?
+            )`;
+            // Tambahkan 3 parameter 'LIKE' ke array params
+            const searchTerm = `%${search}%`;
+            params.push(searchTerm, searchTerm, searchTerm);
+        }
+        
         sql += ' ORDER BY h.spp_tanggal DESC';
+
         const [rows] = await pool.query(sql, params);
         return rows;
     }
+
 
     async getPengajuanById(nomor) {
         // ... (Fungsi ini sudah benar, tidak diubah)
