@@ -1,94 +1,101 @@
-// File: controllers/it_job.controller.js
+// [PERBAIKAN] Ganti nama import service agar sesuai
+const itJobService = require('../services/jobit.service.js');
 
-const itJobService = require('../services/jobit.service');
-
-// 1. GET /form-data
-exports.getFormData = async (req, res) => {
+/**
+ * @desc    Mengambil daftar job IT (dengan filter role)
+ * @route   GET /api/job-it/jobs
+ */
+exports.handleGetAllItJobs = async (req, res) => {
   try {
-    const data = await itJobService.getFormData();
-    res.status(200).send(data);
+    // req.query akan berisi semua filter (termasuk 'user_kode' jika dikirim)
+    const data = await itJobService.getAllItJobs(req.query);
+    res.status(200).json(data); 
   } catch (error) {
-    res.status(500).send({ message: error.message });
+    console.error("Error di handleGetAllItJobs:", error);
+    res.status(500).json([]); // Kirim array kosong jika error
   }
 };
 
-// 2. GET /
-exports.getAllJobs = async (req, res) => {
+/**
+ * @desc    Mengambil daftar nama staf IT (untuk dropdown)
+ * @route   GET /api/job-it/it-staff
+ */
+exports.handleGetItStaffList = async (req, res) => {
   try {
-    // Ambil semua filter dari query string
-    const filters = {
-      startDate: req.query.startDate,
-      endDate: req.query.endDate,
-      cabang: req.query.cabang,
-      it_staff: req.query.it_staff,
-      status: req.query.status, // 0, 1, 2, atau 'ALL'
-      user_kode: req.query.user_kode // Kirim user_kode jika login BUKAN IT
-    };
-    const data = await itJobService.getAllJobs(filters);
-    res.status(200).send(data);
+    // [FIX] Panggil nama fungsi yang benar dari service
+    const data = await itJobService.getItStaffList(); 
+    res.status(200).json(data);
   } catch (error) {
-    res.status(500).send({ message: error.message });
+    console.error("Error di handleGetItStaffList:", error);
+    res.status(500).json([]);
   }
 };
 
-// 3. GET /:nomor
-exports.getJobByNomor = async (req, res) => {
+/**
+ * @desc    Mengambil detail satu job
+ * @route   GET /api/job-it/jobs/:nomor
+ */
+exports.handleGetJobByNomor = async (req, res) => {
   try {
     const { nomor } = req.params;
     const data = await itJobService.getJobByNomor(nomor);
     if (!data) {
-      return res.status(404).send({ message: 'Nomor tidak ditemukan.' });
+      return res.status(404).json({ success: false, message: 'Job tidak ditemukan' });
     }
-    res.status(200).send(data);
+    // Kirim data di dalam { success: true, data: ... }
+    res.status(200).json({ success: true, data: data });
   } catch (error) {
-    res.status(500).send({ message: error.message });
+    console.error("Error di handleGetJobByNomor:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 4. POST /
-exports.createJob = async (req, res) => {
+/**
+ * @desc    Membuat job IT baru
+ * @route   POST /api/job-it/jobs
+ */
+exports.handleCreateJob = async (req, res) => {
   try {
     const data = req.body;
-    // Validasi dasar
-    if (!data.jb_lokasi || !data.jb_user) {
-      return res.status(400).send({ message: 'Lokasi dan User wajib diisi.' });
-    }
     const result = await itJobService.createJob(data);
-    res.status(201).send({ 
-      message: `Tiket berhasil dibuat dengan No: ${result.newNomor}`, 
-      nomor: result.newNomor 
-    });
+    res.status(201).json({ success: true, data: result });
   } catch (error) {
-    res.status(500).send({ message: error.message });
+    console.error("Error di handleCreateJob:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 5. PUT /:nomor
-exports.updateJob = async (req, res) => {
+/**
+ * @desc    Mengupdate job IT
+ * @route   PUT /api/job-it/jobs/:nomor
+ */
+exports.handleUpdateJob = async (req, res) => {
   try {
     const { nomor } = req.params;
     const data = req.body;
-    
-    const result = await itJobService.updateJob(nomor, data);
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).send({ message: 'Nomor tidak ditemukan.' });
-    }
-    
-    res.status(200).send({ message: 'Tiket berhasil diupdate.' });
+    await itJobService.updateJob(nomor, data);
+    res.status(200).json({ success: true, message: 'Job berhasil diperbarui' });
   } catch (error) {
-    res.status(500).send({ message: error.message });
+    console.error("Error di handleUpdateJob:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// 6. DELETE /:nomor
-exports.deleteJob = async (req, res) => {
+/**
+ * @desc    Menghapus job IT
+ * @route   DELETE /api/job-it/jobs/:nomor
+ */
+exports.handleDeleteItJob = async (req, res) => {
   try {
     const { nomor } = req.params;
-    await itJobService.deleteJob(nomor);
-    res.status(200).send({ message: 'Tiket berhasil dihapus.' });
+    const result = await itJobService.deleteItJob(nomor);
+    res.status(200).json(result);
   } catch (error) {
-    // Tangkap error validasi dari service
-    res.status(400).send({ message: error.message });
+    console.error("Error di handleDeleteItJob:", error);
+    if (error.message.includes('Tidak bisa dihapus')) {
+      res.status(400).json({ success: false, message: error.message });
+    } else {
+      res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

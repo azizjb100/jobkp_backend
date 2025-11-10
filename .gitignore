@@ -1,0 +1,41 @@
+File ini memberitahu Git untuk MENGABAIKAN file dan folder berikut.
+
+1. Folder Dependensi
+
+Ini adalah folder terbesar dan tidak boleh di-upload.
+
+(Puluhan ribu file yang bisa di-install ulang dengan 'npm install')
+
+node_modules/
+
+2. File Log
+
+Abaikan file log yang dibuat secara otomatis saat error atau debug.
+
+npm-debug.log
+*.log
+yarn-error.log
+
+3. File Sistem Operasi
+
+File sampah dari macOS dan Windows
+
+.DS_Store
+Thumbs.db
+
+4. File Rahasia dan Kunci (PALING PENTING!)
+
+JANGAN PERNAH upload file-file ini ke GitHub.
+
+File environment (berisi password database, JWT secret)
+
+.env
+
+Kunci Admin Firebase (dari panduan kita)
+
+serviceAccountKey.json
+
+5. Folder Build (jika Anda menggunakan TypeScript/Babel)
+
+dist/
+build/

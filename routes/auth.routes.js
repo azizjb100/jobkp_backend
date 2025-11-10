@@ -1,26 +1,28 @@
-// routes/auth.routes.js
-
 const express = require('express');
 const router = express.Router();
+const controller = require('../controllers/auth.controller.js');
+const authMiddleware = require('../middleware/auth.middleware.js'); 
 
-// Pastikan path ini benar menuju file controller Anda
-const authController = require('../controllers/auth.controller');
+/**
+ * @route   POST /api/auth/login
+ * @desc    Endpoint publik untuk login
+ * @access  Public
+ */
+router.post(
+  '/login',
+  controller.login // Tidak perlu token untuk login
+);
 
-// Pastikan nama fungsinya adalah 'login', bukan 'loginUser' atau lainnya
-router.post('/login', authController.login);
+/**
+ * @route   GET /api/auth/login-list
+ * @desc    [DEBUG ONLY] Endpoint untuk mengambil daftar user
+ * @access  (Dibuat) Public untuk debug
+ */
+router.get(
+  '/login-list',
+  // [PERBAIKAN] Hapus middleware ini agar tidak perlu token
+  // [authMiddleware], 
+  controller.getLoginList
+);
 
 module.exports = router;
-
-
-
-
-
-// const express = require('express');
-// const router = express.Router();
-// const authController = require('../controllers/auth.controller');
-
-// // Rute untuk POST /api/auth/login
-// router.post('/login', authController.login);
-// router.get('/credentials', authController.getCredentials);
-
-// module.exports = router;

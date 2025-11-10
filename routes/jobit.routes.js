@@ -1,27 +1,72 @@
-// File: routes/it_job.routes.js
-
 const express = require('express');
 const router = express.Router();
-const itJobController = require('../controllers/jobit.controller');
-// (Tambahkan middleware auth jika perlu)
-// const authJwt = require("../middleware/authJwt");
+const controller = require('../controllers/jobit.controller.js');
+const authMiddleware = require('../middleware/auth.middleware.js');
 
-router.get('/form-data', itJobController.getFormData);
+/**
+ * @route   GET /api/job-it/jobs
+ * @desc    Mengambil daftar job IT (dengan filter role)
+ * @access  Private
+ */
+router.get(
+  '/jobs',
+  [authMiddleware],
+  controller.handleGetAllItJobs
+);
 
-// GET /api/it-jobs
-router.get('/', itJobController.getAllJobs);
+/**
+ * @route   GET /api/job-it/it-staff
+ * @desc    Mengambil daftar nama staf IT (untuk dropdown)
+ * @access  Private
+ */
+router.get(
+  '/it-staff',
+  [authMiddleware],
+  controller.handleGetItStaffList
+);
 
-// GET /api/it-jobs/:nomor
-router.get('/:nomor', itJobController.getJobByNomor);
+/**
+ * @route   POST /api/job-it/jobs
+ * @desc    Membuat job IT baru
+ * @access  Private
+ */
+router.post(
+  '/jobs',
+  [authMiddleware],
+  controller.handleCreateJob
+);
 
-// POST /api/it-jobs
-router.post('/', itJobController.createJob);
+/**
+ * @route   GET /api/job-it/jobs/:nomor
+ * @desc    Mengambil detail satu job
+ * @access  Private
+ */
+router.get(
+  '/jobs/:nomor',
+  [authMiddleware],
+  controller.handleGetJobByNomor
+);
 
-// PUT /api/it-jobs/:nomor
-router.put('/:nomor', itJobController.updateJob);
+/**
+ * @route   PUT /api/job-it/jobs/:nomor
+ * @desc    Mengupdate job IT
+ * @access  Private
+ */
+router.put(
+  '/jobs/:nomor',
+  [authMiddleware],
+  controller.handleUpdateJob
+);
 
-// DELETE /api/it-jobs/:nomor
-router.delete('/:nomor', itJobController.deleteJob);
-
+/**
+ * @route   DELETE /api/job-it/jobs/:nomor
+ * @desc    Menghapus job IT
+ * @access  Private
+ */
+router.delete(
+  '/jobs/:nomor',
+  [authMiddleware],
+  controller.handleDeleteItJob
+);
 
 module.exports = router;

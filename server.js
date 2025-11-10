@@ -12,6 +12,8 @@ const laporanPerbaikanRoutes = require('./routes/laporan_perbaikan.routes');
 const laporanAbsenRoutes = require('./routes/laporanAbsen.routes');
 const realisasiPengajuanRoutes = require('./routes/realisasi_pengajuan.routes');
 const jobitRoutes = require('./routes/jobit.routes');
+const notificationRoutes = require('./routes/notification.routes');
+const gantiPasswordRoutes = require('./routes/password.routes');
 
 const app = express();
 
@@ -50,6 +52,8 @@ app.use('/api/laporan', laporanPerbaikanRoutes);
 app.use('/api/absensi', laporanAbsenRoutes);
 app.use('/api/realisasi', realisasiPengajuanRoutes);
 app.use('/api/jobit', jobitRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/password', gantiPasswordRoutes);
 
 
 // Port

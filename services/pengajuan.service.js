@@ -204,12 +204,13 @@ class PengajuanService {
     }
 
     async getAvailableJobs() {
-        // ... (Fungsi ini sudah benar, tidak diubah)
         const sql = `
             SELECT jb_nomor AS Nomor,
                 CONCAT('Tanggal: ', DATE_FORMAT(jb_tanggal, '%d-%m-%Y %T'), '\\r\\n',
                        'User: ', jb_cabang, ' ', IFNULL((SELECT user_nama FROM bsmcabang.job_user WHERE user_kode=jb_user), '-'), '\\r\\n',
-                       'Kerusakan: ', jb_lokasi) AS Detail
+                       'Kerusakan: ', jb_lokasi, '\\r\\n',
+                       'Keterangan: ', IFNULL(jb_ket, '-') 
+                       ) AS Detail
             FROM bsmcabang.job_butuh_hdr
             WHERE jb_konfirteknisi = 1 AND jb_pengajuan = 1 AND jb_selesai <> 1 AND jb_tgl_close IS NULL
             ORDER BY jb_tanggal DESC

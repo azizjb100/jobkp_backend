@@ -1,59 +1,88 @@
-// controllers/auth.controller.js
-
+const authService = require('../services/auth.service.js');
 const jwt = require('jsonwebtoken');
-// [PERBAIKAN] Impor service yang sudah kita buat
-const authService = require('../services/auth.service');
+// [PERBAIKAN 1] Hapus 'bcrypt' karena kita tidak menggunakannya
+// const bcrypt = require('bcryptjs'); 
 
-exports.login = async (req, res) => {
+const JWT_SECRET = process.env.JWT_SECRET || 's+qG0PB3JQB/jHABdHfVejMBUm9zJtE4Mb1GHMAYXsw=';
+
+class AuthController {
+
+  async login(req, res) {
     try {
-        const { user_kode, password } = req.body;
+      const { user_kode, password } = req.body;
 
-        if (!user_kode || !password) {
-            return res.status(400).json({ message: 'Username dan Password harus diisi' });
-        }
+      if (!user_kode || !password) {
+        return res.status(400).json({ success: false, message: "Username dan password wajib diisi." });
+      }
 
-        // 1. Panggil service untuk mencari user berdasarkan username
-        const user = await authService.findUserByUsername(user_kode);
+      const user = await authService.findUserByUsername(user_kode);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "Username tidak ditemukan." });
+      }
 
-        // Jika user tidak ditemukan
-        if (!user) {
-            return res.status(401).json({ message: 'Username atau Password salah' });
-        }
+      // [PERBAIKAN 2] Ganti logika perbandingan password
+      
+      // HAPUS INI: (Hanya untuk password ter-enkripsi)
+      // const isPasswordValid = bcrypt.compareSync(password, user.USER_PASSWORD);
+      
+      // GANTI DENGAN INI: (Untuk password plain text)
+      const isPasswordValid = (password === user.USER_PASSWORD);
 
-        // 2. Bandingkan password di dalam kode aplikasi (bukan di SQL)
-        // Ganti ini dengan `bcrypt.compareSync` jika password Anda di-hash
-        const isPasswordValid = (password === user.USER_PASSWORD);
+      
+      if (!isPasswordValid) {
+        // Error Anda berasal dari sini
+        return res.status(401).json({ success: false, message: "Password salah." });
+      }
 
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Username atau Password salah' });
-        }
-        
-        // 3. Jika berhasil, buat token dan kirim response
-        const payload = {
-            userId: user.USER_KODE,
-            nama: user.USER_NAMA,
-            role: user.USER_BAG
-        };
+      // 3. Buat JWT Token
+      const token = jwt.sign(
+        { 
+          userId: user.USER_KODE, 
+          role: user.USER_BAG 
+        }, 
+        JWT_SECRET, 
+        { expiresIn: '24h' } 
+      );
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-        res.status(200).json({
-            message: "Login berhasil",
-            token: token,
-            user: {
-                user_kode: user.USER_KODE,
-                user_nama: user.USER_NAMA,
-                user_divisi: user.USER_DIVISI,
-                user_cabang: user.USER_CABANG,
-                user_bag: user.USER_BAG,
-                user_manager: user.USER_MANAGER,
-                user_it: user.USER_IT,
-                user_brg: user.USER_BRG,
-            }
-        });
+      // 4. Siapkan data user
+      const userData = {
+        user_kode: user.USER_KODE,
+        nama: user.USER_NAMA,
+        divisi: user.USER_DIVISI,
+        cabang: user.USER_CABANG,
+        user_bag: user.USER_BAG,
+        manager: user.USER_MANAGER,
+        it: user.USER_IT,
+        brg: user.USER_BRG,
+        role: user.USER_BAG 
+      };
+      
+      // 5. Kirim balasan
+      res.status(200).json({
+        success: true,
+        message: "Login berhasil",
+        token: token,
+        user: userData 
+      });
 
     } catch (error) {
-        console.error("Login Controller Error:", error);
-        res.status(500).json({ message: "Terjadi kesalahan pada server" });
+      console.error("Error di AuthController.login:", error);
+      res.status(500).json({ success: false, message: error.message });
     }
-};
+  }
+
+  /**
+   * Menangani: GET /api/auth/login-list
+   * (Hanya untuk DEBUG)
+   */
+  async getLoginList(req, res) {
+    try {
+      const users = await authService.getLoginList();
+      res.status(200).json(users);
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+}
+
+module.exports = new AuthController();
