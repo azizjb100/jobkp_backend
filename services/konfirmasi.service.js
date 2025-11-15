@@ -85,9 +85,6 @@ class JobService {
             sql += ` AND jb.jb_selesai IN (${placeholders})`;
             params.push(...statusValues);
         }
-    } else if (excludeStatus && excludeStatus.toUpperCase() === 'SELESAI') {
-        // Logika pengecualian (digunakan untuk filter ALL jika status tidak diset)
-        sql += ' AND jb.jb_selesai != 1'; // 1 = Selesai
     }
     if (closeStatus && closeStatus.toUpperCase() !== 'ALL') {
         if (closeStatus.toUpperCase() === 'NOT CLOSE') {
