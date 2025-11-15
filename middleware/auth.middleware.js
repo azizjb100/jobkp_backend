@@ -42,10 +42,9 @@ const authMiddleware = async (req, res, next) => {
             brg: users[0].USER_BRG
         };
 
-        next(); // Lanjutkan ke controller (misal: konfirmasi.controller.js)
+        next(); // Lanjutkan ke controller
     } catch (error) {
         console.error('❌ Auth error:', error.message);
-        // Jika token expired atau tidak valid
         return res.status(401).json({
             success: false,
             message: 'Token tidak valid atau kedaluwarsa.',

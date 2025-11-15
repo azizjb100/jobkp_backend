@@ -1,4 +1,6 @@
 const { pool } = require('../config/db.config');
+// [FIX] Impor admin Firebase (jika Anda menggunakannya)
+// const admin = require('../config/firebase.config.js');
 
 class JobService {
   
@@ -10,7 +12,6 @@ class JobService {
    * Mengambil daftar pekerjaan dengan filter (LEFT JOIN)
    */
   async getJobs(filters) {
-    // [PERBAIKAN 1] Ambil 'includeBantu' dari filters
     const { startDate, endDate, status, closeStatus, branch, technician, includeBantu, search } = filters;
 
     let sql = `
@@ -39,7 +40,7 @@ class JobService {
         ) AS jb_konfir_teknisi,
         IF(jb.jb_pengajuan=0,'Tidak','Ya') AS jb_pengajuan_barang,
         IFNULL(spp.spp_nomor, '-') AS jb_sparepart_gudang,
-        jb.jb_ket_teknisi AS jb_ket_proses,
+        jb.jb_ket_teknisi,
         CONCAT(
           IF(jb.jb_selesai=0,'Belum ',
              IF(jb.jb_selesai=2,'Proses ','Sudah ')),
@@ -63,22 +64,31 @@ class JobService {
 
     const params = [];
 
-    // Filter tanggal
     if (startDate && endDate) {
         sql += ` AND DATE(jb.jb_tanggal) BETWEEN ? AND ?`;
         params.push(startDate, endDate);
     }
-
-    // Filter status
     if (status && status.toUpperCase() !== 'ALL') {
-        let statusValue = 0;
-        if (status.toUpperCase() === 'PROSES') statusValue = 2;
-        if (status.toUpperCase() === 'SELESAI') statusValue = 1;
-        sql += ' AND jb.jb_selesai = ?';
-        params.push(statusValue);
+        const statuses = status.toUpperCase().split(',');
+        const statusValues = [];
+        
+        statuses.forEach(s => {
+            if (s === 'BELUM' || s === 'BARU') statusValues.push(0); 
+            if (s === 'PROSES') statusValues.push(2);                
+            if (s === 'SELESAI') statusValues.push(1);               
+        });
+        
+        console.log('Status input:', status); // Cek status yang masuk (misal: BARU,PROSES)
+        console.log('Status Values yang dihasilkan:', statusValues); // Cek array yang dihasilkan (Harusnya: [0, 2])
+        
+        if (statusValues.length > 0) {const placeholders = statusValues.map(() => '?').join(', '); 
+            sql += ` AND jb.jb_selesai IN (${placeholders})`;
+            params.push(...statusValues);
+        }
+    } else if (excludeStatus && excludeStatus.toUpperCase() === 'SELESAI') {
+        // Logika pengecualian (digunakan untuk filter ALL jika status tidak diset)
+        sql += ' AND jb.jb_selesai != 1'; // 1 = Selesai
     }
-
-    // Filter close
     if (closeStatus && closeStatus.toUpperCase() !== 'ALL') {
         if (closeStatus.toUpperCase() === 'NOT CLOSE') {
             sql += ' AND jb.jb_tgl_close IS NULL';
@@ -86,18 +96,11 @@ class JobService {
             sql += ' AND jb.jb_tgl_close IS NOT NULL';
         }
     }
-
-    // Filter cabang
     if (branch && branch.toUpperCase() !== 'ALL') {
         sql += ' AND jb.jb_cabang = ?';
         params.push(branch);
     }
-
-    // Filter teknisi
     if (technician && technician.toUpperCase() !== 'ALL') {
-        
-        // [PERBAIKAN 2] Ganti 'filters.includeBantu' menjadi 'includeBantu'
-        // Sekarang variabel ini sudah didefinisikan di atas
         if (includeBantu === 'true') { 
             sql += ` AND (jb.jb_teknisi = ? OR jb.jb_teknisi2 = ?)`;
             params.push(technician, technician);
@@ -106,62 +109,82 @@ class JobService {
             params.push(technician);
         }
     }
-    
-    // Filter search
     if (search && search.trim() !== '') {
       const searchTerm = `%${search}%`;
-      
       sql += ` AND (
         jb.jb_nomor LIKE ? OR 
         jb.jb_lokasi LIKE ? OR
         jb.jb_divisi LIKE ? OR
         jb.jb_ket LIKE ? 
       )`; 
-      
       params.push(searchTerm, searchTerm, searchTerm, searchTerm); 
     }
 
     sql += ` ORDER BY jb.jb_tanggal DESC`;
-
     const [jobs] = await pool.query(sql, params);
     return jobs;
   }
 
-  async getJobById(id) {
-      // ... (Fungsi ini sudah benar)
-      const headerQuery = `
-          SELECT 
-              h.*, 
-              j.spp_nomor,
-              u.user_nama,
-              IFNULL(t.user_nama, '') as nama_teknisi
-          FROM bsmcabang.job_butuh_hdr h
-          LEFT JOIN bsmcabang.job_user u ON u.user_kode = h.jb_user 
-          LEFT JOIN bsmcabang.job_user t ON t.user_kode = h.jb_teknisi
-          LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr j ON j.spp_job = h.jb_nomor
-          WHERE h.jb_nomor = ?;
-      `;
-      const [headerRows] = await pool.query(headerQuery, [id]);
+async getJobById(id) {
+    // 1. Ambil Header (Termasuk spp_nomor)
+    const headerQuery = `
+        SELECT 
+    h.*, 
+    IF(h.jb_pengajuan = 1, 'Ya', 'Tidak') as pengajuanBarang, -- <--- PAKSA DARI jb_pengajuan
+    j.spp_nomor,
+    u.user_nama,
+    IFNULL(t.user_nama, '') as nama_teknisi
+FROM bsmcabang.job_butuh_hdr h
+        LEFT JOIN bsmcabang.job_user u ON u.user_kode = h.jb_user 
+        LEFT JOIN bsmcabang.job_user t ON t.user_kode = h.jb_teknisi
+        LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr j ON j.spp_job = h.jb_nomor
+        WHERE h.jb_nomor = ?;
+    `;
+    const [headerRows] = await pool.query(headerQuery, [id]);
 
-      if (headerRows.length === 0) {
-          const error = new Error('Job not found');
-          error.statusCode = 404;
-          throw error;
-      }
+    if (headerRows.length === 0) {
+        const error = new Error('Job not found');
+        error.statusCode = 404;
+        throw error;
+    }
 
-      const detailsQuery = `
-          SELECT 
-              jbd_kode,
-              jbd_nama as nama, 
-              jbd_satuan as satuan, 
-              jbd_qty as qty 
-          FROM bsmcabang.job_butuh_dtl 
-          WHERE jbd_nomor = ?;
-      `;
-      const [details] = await pool.query(detailsQuery, [id]);
+    const header = headerRows[0];
+    const sppNomor = header.spp_nomor; // Ambil spp_nomor
 
-      return { header: headerRows[0], details };
-  }
+    // 2. Ambil Detail Barang Yang Dibutuhkan (jbd_nama, jbd_satuan, dll.)
+    const jobDetailsQuery = `
+        SELECT 
+            jbd_nomor,
+            jbd_nama as nama, 
+            jbd_satuan as satuan, 
+            jbd_qty as qty 
+        FROM bsmcabang.job_butuh_dtl 
+        WHERE jbd_nomor = ?;
+    `;
+    const [jobDetails] = await pool.query(jobDetailsQuery, [id]);
+    
+    // 3. Ambil Detail Sparepart Yang SUDAH DIAJUKAN (Hanya jika spp_nomor ada)
+    let sparepartDetails = [];
+    if (sppNomor) {
+        const sparepartDetailsQuery = `
+            SELECT 
+                spd_nama as nama,
+                spd_satuan as satuan,
+                spd_qty as qty
+            FROM kencanaprint.tsparepart_pengajuan_dtl
+            WHERE spd_nomor = ?;
+        `;
+        const [spDetails] = await pool.query(sparepartDetailsQuery, [sppNomor]);
+        sparepartDetails = spDetails;
+    }
+    
+    // 4. Gabungkan dan Kembalikan Hasil
+    return { 
+        header, 
+        job_details: jobDetails, 
+        sparepart_details: sparepartDetails // <--- DATA BARU
+    };
+}
 
   // =================================================================
   // FUNGSI UPDATE (GA & Teknisi)
@@ -193,15 +216,12 @@ class JobService {
         id
       ]);
 
-      // [NOTIFIKASI 1] Kirim notif jika GA mengkonfirmasi
       if (konfirGA) {
         const [jobRows] = await connection.query("SELECT jb_user, jb_lokasi, jb_ket FROM bsmcabang.job_butuh_hdr WHERE jb_nomor = ?", [id]);
         const jobInfo = jobRows[0];
         const notifText = `${jobInfo.jb_lokasi} ${jobInfo.jb_ket}. Dikonfirmasi & Dijadwalkan GA: ${userId}`;
-        
         await this._sendNotification(connection, id, notifText, jobInfo.jb_user, 2);
         await this._sendNotification(connection, id, notifText, data.teknisiId, 2);
-        // TODO: Kirim ke Manajer
       }
       
       await connection.commit();
@@ -255,23 +275,28 @@ class JobService {
         const notifText = `${jobInfo.jb_lokasi} ${jobInfo.jb_ket}. Selesai dikerjakan.`;
         await this._sendNotification(connection, id, notifText, userGA, 4);
         await this._sendNotification(connection, id, notifText, userPeminta, 4);
-      
       } 
       else if (konfirTeknisi) { // Konfirmasi
         const notifText = `${jobInfo.jb_lokasi} ${jobInfo.jb_ket}. Dikonfirmasi Teknisi: ${userId}`;
         await this._sendNotification(connection, id, notifText, userGA, 3);
       }
 
+      // [PERBAIKAN SPAREPART]
       if (data.pengajuanSparepart === true) {
         await connection.query('DELETE FROM bsmcabang.job_butuh_dtl WHERE jbd_nomor = ?', [id]);
+        
         if (data.details && data.details.length > 0) {
-          const detailValues = data.details.map(d => [id, d.kode, d.nama, d.satuan, d.qty]); 
+          // [FIX] Ambil data yang benar dari Flutter (nama, satuan, qty)
+          const detailValues = data.details.map(d => [id, d.nama, d.satuan, d.qty]); 
+          
+          // [FIX] Hapus 'jbd_kode' dari query INSERT
           await connection.query(
-            'INSERT INTO bsmcabang.job_butuh_dtl (jbd_nomor, jbd_kode, jbd_nama, jbd_satuan, jbd_qty) VALUES ?',
+            'INSERT INTO bsmcabang.job_butuh_dtl (jbd_nomor, jbd_nama, jbd_satuan, jbd_qty) VALUES ?',
             [detailValues]
           );
         }
       }
+      // [AKHIR PERBAIKAN SPAREPART]
 
       await connection.commit();
       return { success: true, message: 'Data Teknisi berhasil diperbarui.' };

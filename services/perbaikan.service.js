@@ -1,7 +1,6 @@
 // File: perbaikan.service.js (Versi Final Sesuai Delphi)
 
 const { pool } = require('../config/db.config');
-
 const getFormData = async (cabang, userKode) => {
   try {
     const validationSql = `
@@ -33,8 +32,6 @@ const getFormData = async (cabang, userKode) => {
     const jenisSql = 'SELECT Jenis FROM job_jenis_pekerjaan ORDER BY Jenis';
     const [jenisRows] = await pool.query(jenisSql);
     const jenisOptions = jenisRows.map(row => row.Jenis);
-    
-    // 4. Ambil data bagian default dari profil user (sesuai 'zbagian' di prosedur bersih)
     let defaultBagian = '';
     if (userKode) {
         const userSql = 'SELECT user_divisi FROM job_user WHERE user_kode = ?';
@@ -63,7 +60,6 @@ const getFormData = async (cabang, userKode) => {
 const createPerbaikan = async (data, userKode) => {
   // [A] Try...Catch Utama untuk membuat perbaikan
   try {
-    // 1. Ambil data. 'jb_cabang' akan menentukan PREfix dari nomor baru.
     const { 
       jb_tanggal, jb_divisi, jb_bagian, jb_lokasi, 
       jb_jenis, jb_ket, jb_urgent, jb_cabang 
