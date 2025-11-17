@@ -126,12 +126,12 @@ async getJobById(id) {
     // 1. Ambil Header (Termasuk spp_nomor)
     const headerQuery = `
         SELECT 
-    h.*, 
-    IF(h.jb_pengajuan = 1, 'Ya', 'Tidak') as pengajuanBarang, -- <--- PAKSA DARI jb_pengajuan
-    j.spp_nomor,
-    u.user_nama,
-    IFNULL(t.user_nama, '') as nama_teknisi
-FROM bsmcabang.job_butuh_hdr h
+            h.*, 
+            IF(h.jb_pengajuan = 1, 'Ya', 'Tidak') as pengajuanBarang,
+            j.spp_nomor,
+            u.user_nama,
+            IFNULL(t.user_nama, '') as nama_teknisi
+        FROM bsmcabang.job_butuh_hdr h
         LEFT JOIN bsmcabang.job_user u ON u.user_kode = h.jb_user 
         LEFT JOIN bsmcabang.job_user t ON t.user_kode = h.jb_teknisi
         LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr j ON j.spp_job = h.jb_nomor
@@ -146,7 +146,7 @@ FROM bsmcabang.job_butuh_hdr h
     }
 
     const header = headerRows[0];
-    const sppNomor = header.spp_nomor; // Ambil spp_nomor
+    const sppNomor = header.spp_nomor; 
 
     // 2. Ambil Detail Barang Yang Dibutuhkan (jbd_nama, jbd_satuan, dll.)
     const jobDetailsQuery = `
@@ -159,30 +159,11 @@ FROM bsmcabang.job_butuh_hdr h
         WHERE jbd_nomor = ?;
     `;
     const [jobDetails] = await pool.query(jobDetailsQuery, [id]);
-    
-    // 3. Ambil Detail Sparepart Yang SUDAH DIAJUKAN (Hanya jika spp_nomor ada)
-    let sparepartDetails = [];
-    if (sppNomor) {
-        const sparepartDetailsQuery = `
-            SELECT 
-                spd_nama as nama,
-                spd_satuan as satuan,
-                spd_qty as qty
-            FROM kencanaprint.tsparepart_pengajuan_dtl
-            WHERE spd_nomor = ?;
-        `;
-        const [spDetails] = await pool.query(sparepartDetailsQuery, [sppNomor]);
-        sparepartDetails = spDetails;
-    }
-    
-    // 4. Gabungkan dan Kembalikan Hasil
     return { 
         header, 
-        job_details: jobDetails, 
-        sparepart_details: sparepartDetails // <--- DATA BARU
+        job_details: jobDetails,
     };
 }
-
   // =================================================================
   // FUNGSI UPDATE (GA & Teknisi)
   // =================================================================
