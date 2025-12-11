@@ -67,3 +67,13 @@ exports.getTechnicians = async (req, res) => {
         res.status(500).json({ message: "Error saat mengambil daftar teknisi", error: error.message });
     }
 };
+
+
+exports.getBranches = async (req, res) => {
+    try {
+        const branches = await jobService.getBranches();
+        res.status(200).json(branches);
+    } catch (error) {
+        res.status(500).json({ message: "Error saat mengambil daftar teknisi", error: error.message });
+    }
+};

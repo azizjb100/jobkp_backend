@@ -327,6 +327,19 @@ async getJobById(id) {
     const [technicians] = await pool.query(sql);
     return technicians;
   }
+  async getBranches() {
+        const sql = `
+            SELECT X.Cabang 
+            FROM (
+                SELECT "ALL" AS Cabang
+                UNION
+                SELECT DISTINCT user_cabang FROM bsmcabang.job_user WHERE user_cabang IS NOT NULL AND user_cabang != ''
+            ) x  
+            ORDER BY x.Cabang
+        `;
+        const [branches] = await pool.query(sql);
+        return branches.map(row => row.Cabang); // Mengembalikan array string
+    }
 }
 
 module.exports = new JobService();

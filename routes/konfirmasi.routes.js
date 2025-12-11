@@ -24,6 +24,13 @@ router.get(
   controller.getTechnicians
 );
 
+// GET /branches (Daftar cabang)
+router.get(
+  '/branches',
+  [authMiddleware],
+  controller.getBranches
+);
+
 // PUT /jobs/:id (Update)
 router.put(
   '/jobs/:id',
