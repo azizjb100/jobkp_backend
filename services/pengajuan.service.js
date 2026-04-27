@@ -82,12 +82,12 @@ class PengajuanService {
 
             const detailSql = `
                 SELECT 
-                    d.mind_kode, 
+                    d.mind_brg_kode, 
                     b.brg_nama, 
                     b.brg_satuan, 
                     d.mind_qty
                 FROM kencanaprint.tgarmenminta_dtl d
-                LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.mind_kode
+                LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.mind_brg_kode
                 WHERE d.mind_nomor = ?
             `;
             const [detailRows] = await pool.query(detailSql, [nomor]);
@@ -143,12 +143,12 @@ class PengajuanService {
                 await connection.query(updateHeaderSql, [header.spp_ket, userKode, nomorPengajuan]);
             }
             
-            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE sppd_nomor = ?', [nomorPengajuan]);
+            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
             if (details && details.length > 0) {
-                const detailValues = details.map(d => [nomorPengajuan, d.sppd_kode, d.sppd_qty]);
+                const detailValues = details.map(d => [nomorPengajuan, d.mind_brg_kode, d.mind_qty]);
                 await connection.query(
-                    'INSERT INTO kencanaprint.tgarmenminta_dtl (sppd_nomor, sppd_kode, sppd_qty) VALUES ?',
+                    'INSERT INTO kencanaprint.tgarmenminta_dtl (mind_nomor, mind_brg_kode, mind_qty) VALUES ?',
                     [detailValues]
                 );
             }
@@ -182,7 +182,7 @@ class PengajuanService {
         await connection.beginTransaction();
 
         try {
-            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE sppd_nomor = ?', [nomor]);
+            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomor]);
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_hdr WHERE min_nomor = ?', [nomor]);
             await connection.commit();
             console.log(`[PengajuanService] Pengajuan ${nomor} berhasil dihapus.`);
