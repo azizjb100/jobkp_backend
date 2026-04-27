@@ -40,7 +40,7 @@ const getDetAssetByNomor = async (znomor) => {
         IFNULL(u_konfirtek.user_nama, '')
       ) AS jb_konfir_teknisi,
       IF(jb.jb_pengajuan=0,'Tidak','Ya') AS jb_pengajuan_barang,
-      IFNULL(spp.spp_nomor, '-') AS jb_sparepart_gudang,
+      IFNULL(spp.min_nomor, '-') AS jb_sparepart_gudang,
       jb.jb_ket_teknisi AS jb_ket_proses,
       CONCAT(
         IF(jb.jb_selesai=0,'Belum ',
@@ -59,7 +59,8 @@ const getDetAssetByNomor = async (znomor) => {
     LEFT JOIN bsmcabang.job_user AS u_teknisi1 ON jb.jb_teknisi = u_teknisi1.user_kode
     LEFT JOIN bsmcabang.job_user AS u_teknisi2 ON jb.jb_teknisi2 = u_teknisi2.user_kode
     LEFT JOIN bsmcabang.job_user AS u_konfirtek ON jb.jb_konfirteknisi_nama = u_konfirtek.user_kode
-    LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr AS spp ON jb.jb_nomor = spp.spp_job
+    LEFT JOIN kencanaprint.tgarmenminta_hdr AS spp ON jb.jb_nomor = spp.min_spk_nomor
+
 
     WHERE jb.jb_nomor = ?;
   `;
@@ -108,7 +109,7 @@ const getAllAssets = async (filters) => {
       ) AS jb_konfir_teknisi,
 
       IF(jb.jb_pengajuan = 0, 'Tidak', 'Ya') AS jb_pengajuan_barang,
-      IFNULL(spp.spp_nomor, '-') AS jb_sparepart_gudang,
+      IFNULL(spp.min_nomor, '-') AS jb_sparepart_gudang,
       jb.jb_ket_teknisi AS jb_ket_proses,
 
       CONCAT(
@@ -130,7 +131,7 @@ const getAllAssets = async (filters) => {
     LEFT JOIN bsmcabang.job_user AS u_teknisi1 ON jb.jb_teknisi = u_teknisi1.user_kode
     LEFT JOIN bsmcabang.job_user AS u_teknisi2 ON jb.jb_teknisi2 = u_teknisi2.user_kode
     LEFT JOIN bsmcabang.job_user AS u_konfirtek ON jb.jb_konfirteknisi_nama = u_konfirtek.user_kode
-    LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr AS spp ON jb.jb_nomor = spp.spp_job
+    LEFT JOIN kencanaprint.tgarmenminta_hdr AS spp ON jb.jb_nomor = spp.min_spk_nomor
     WHERE 1 = 1
   `;
 
