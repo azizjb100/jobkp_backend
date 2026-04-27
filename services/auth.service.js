@@ -1,5 +1,3 @@
-// services/auth.service.js
-
 const { pool } = require('../config/db.config');
 
 /**
