@@ -85,7 +85,7 @@ class PengajuanService {
                     d.mind_brg_kode, 
                     b.brg_nama, 
                     b.brg_satuan, 
-                    d.mind_qty
+                    d.mind_jumlah
                 FROM kencanaprint.tgarmenminta_dtl d
                 LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.mind_brg_kode
                 WHERE d.mind_nomor = ?
@@ -146,9 +146,9 @@ class PengajuanService {
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
             if (details && details.length > 0) {
-                const detailValues = details.map(d => [nomorPengajuan, d.mind_brg_kode, d.mind_qty]);
+                const detailValues = details.map(d => [nomorPengajuan, d.mind_brg_kode, d.mind_jumlah]);
                 await connection.query(
-                    'INSERT INTO kencanaprint.tgarmenminta_dtl (mind_nomor, mind_brg_kode, mind_qty) VALUES ?',
+                    'INSERT INTO kencanaprint.tgarmenminta_dtl (mind_nomor, mind_brg_kode, mind_jumlah) VALUES ?',
                     [detailValues]
                 );
             }
