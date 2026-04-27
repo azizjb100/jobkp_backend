@@ -236,7 +236,7 @@ class PengajuanService {
                 IFNULL((SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
                         FROM kencanaprint.tmasterstok_sparepart m 
                         WHERE m.mst_aktif="Y" AND m.mst_brg_kode=brg_kode), 0) AS stok
-            FROM kencanaprint.tsparepart ORDER BY brg_nama
+            FROM kencanaprint.tgarmen_brg ORDER BY brg_nama
         `;
         const [rows] = await pool.query(sql);
         return rows;
