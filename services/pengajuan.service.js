@@ -83,11 +83,11 @@ class PengajuanService {
             const detailSql = `
                 SELECT 
                     d.sppd_kode, 
-                    b.sp_nama, 
-                    b.sp_satuan, 
+                    b.brg_nama, 
+                    b.brg_satuan, 
                     d.sppd_qty
-                FROM kencanaprint.tsparepart_pengajuan_dtl d
-                LEFT JOIN kencanaprint.tsparepart b ON b.sp_kode = d.sppd_kode
+                FROM kencanaprint.tgarmenminta_dtl d
+                LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.sppd_kode
                 WHERE d.sppd_nomor = ?
             `;
             const [detailRows] = await pool.query(detailSql, [nomor]);
@@ -143,12 +143,12 @@ class PengajuanService {
                 await connection.query(updateHeaderSql, [header.spp_ket, userKode, nomorPengajuan]);
             }
             
-            await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_dtl WHERE sppd_nomor = ?', [nomorPengajuan]);
+            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE sppd_nomor = ?', [nomorPengajuan]);
 
             if (details && details.length > 0) {
                 const detailValues = details.map(d => [nomorPengajuan, d.sppd_kode, d.sppd_qty]);
                 await connection.query(
-                    'INSERT INTO kencanaprint.tsparepart_pengajuan_dtl (sppd_nomor, sppd_kode, sppd_qty) VALUES ?',
+                    'INSERT INTO kencanaprint.tgarmenminta_dtl (sppd_nomor, sppd_kode, sppd_qty) VALUES ?',
                     [detailValues]
                 );
             }
@@ -182,7 +182,7 @@ class PengajuanService {
         await connection.beginTransaction();
 
         try {
-            await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_dtl WHERE sppd_nomor = ?', [nomor]);
+            await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE sppd_nomor = ?', [nomor]);
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_hdr WHERE min_nomor = ?', [nomor]);
             await connection.commit();
             console.log(`[PengajuanService] Pengajuan ${nomor} berhasil dihapus.`);
@@ -232,11 +232,11 @@ class PengajuanService {
     async getAvailableSpareparts() {
         console.log(`[PengajuanService] Fetching master sparepart & stok...`);
         const sql = `
-            SELECT sp_kode, sp_nama, sp_satuan,
+            SELECT brg_kode, brg_nama, brg_satuan,
                 IFNULL((SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
                         FROM kencanaprint.tmasterstok_sparepart m 
-                        WHERE m.mst_aktif="Y" AND m.mst_brg_kode=sp_kode), 0) AS stok
-            FROM kencanaprint.tsparepart ORDER BY sp_nama
+                        WHERE m.mst_aktif="Y" AND m.mst_brg_kode=brg_kode), 0) AS stok
+            FROM kencanaprint.tsparepart ORDER BY brg_nama
         `;
         const [rows] = await pool.query(sql);
         return rows;
