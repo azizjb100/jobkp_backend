@@ -23,7 +23,7 @@ async function getRealisasiList(filters) {
         IFNULL(DATE_FORMAT(h.re_dtapprove, "%d-%m-%Y"), "") AS dtapv
     FROM kencanaprint.tgarmenrealisasi_hdr h
     WHERE 
-        h.re_spp_nomor <> ""
+        h.re_nomor <> ""
         AND DATE(h.re_tanggal) BETWEEN ? AND ?
   `;
   
