@@ -233,9 +233,9 @@ class PengajuanService {
     console.log(`[PengajuanService] Fetching master sparepart & stok...`);
     const sql = `
         SELECT 
-            brg_kode, 
-            brg_nama, 
-            brg_satuan,
+            h.brg_kode, 
+            h.brg_nama, 
+            h.brg_satuan,
             IFNULL((
                 SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
                 FROM kencanaprint.tmasterstok_sparepart m 
@@ -243,13 +243,17 @@ class PengajuanService {
                 AND m.mst_brg_kode = h.brg_kode
             ), 0) AS stok
         FROM kencanaprint.tgarmen_brg h
-        WHERE h.brg_jenis = 'SPAREPART' -- WHERE harus sebelum ORDER BY
+        WHERE h.brg_jenis = 'SPAREPART' 
         ORDER BY h.brg_nama ASC
     `;
     
     try {
         const [rows] = await pool.query(sql);
-        console.log(`[PengajuanService] Berhasil mengambil ${rows.length} item sparepart.`);
+        // Log ini akan muncul di terminal PM2 untuk memastikan data ada
+        console.log(`[PengajuanService] Data ditemukan: ${rows.length} item.`); 
+        if (rows.length > 0) {
+            console.log(`[PengajuanService] Contoh data pertama:`, JSON.stringify(rows[0]));
+        }
         return rows;
     } catch (error) {
         console.error(`[PengajuanService] Error pada getAvailableSpareparts:`, error.message);
