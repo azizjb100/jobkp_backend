@@ -13,12 +13,12 @@ class PengajuanService {
                 min_nomor AS Nomor,
                 CONCAT(
                     'Tanggal: ', DATE_FORMAT(min_tanggal, '%d-%m-%Y %T'), '\\r\\n',
-                    'No.Job: ', IFNULL(min_job, '-'), ' ', IFNULL(DATE_FORMAT(j.jb_tanggal, '%d-%m-%Y %T'), ''), '\\r\\n',
+                    'No.Job: ', IFNULL(min_spk_nomor, '-'), ' ', IFNULL(DATE_FORMAT(j.jb_tanggal, '%d-%m-%Y %T'), ''), '\\r\\n',
                     'Keterangan: ', IFNULL(min_ket, ''), '\\r\\n',
                     'Status: ', IFNULL(min_status, '')
                 ) AS Detail
             FROM kencanaprint.tgarmenminta_hdr h
-            LEFT JOIN bsmcabang.job_butuh_hdr j ON j.jb_nomor = h.min_job
+            LEFT JOIN bsmcabang.job_butuh_hdr j ON j.jb_nomor = h.min_spk_nomor
             WHERE DATE(h.min_tanggal) BETWEEN ? AND ?
         `;
         const params = [startDate, endDate];
@@ -31,7 +31,7 @@ class PengajuanService {
         if (search && search.trim() !== '') {
             sql += ` AND (
                 h.min_nomor LIKE ? OR 
-                h.min_job LIKE ? OR 
+                h.min_spk_nomor LIKE ? OR 
                 h.min_ket LIKE ?
             )`;
             const searchTerm = `%${search}%`;
@@ -118,11 +118,11 @@ class PengajuanService {
                 nomorPengajuan = await this._generateNomor(connection, transactionDate); 
                 const insertHeaderSql = `
                     INSERT INTO kencanaprint.tgarmenminta_hdr 
-                        (min_nomor, min_tanggal, min_job, min_ket, user_create, date_create, min_status)
+                        (min_nomor, min_tanggal, min_spk_nomor, min_ket, user_create, date_create, min_status)
                     VALUES (?, ?, ?, ?, ?, NOW(), 'BELUM')
                 `;
                 await connection.query(insertHeaderSql, [
-                    nomorPengajuan, transactionDate, header.min_job, header.min_ket, userKode
+                    nomorPengajuan, transactionDate, header.min_spk_nomor, header.min_ket, userKode
                 ]);
                 console.log(`[PengajuanService] Header baru berhasil disimpan: ${nomorPengajuan}`);
             } else {
