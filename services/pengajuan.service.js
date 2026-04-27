@@ -82,12 +82,12 @@ class PengajuanService {
 
             const detailSql = `
                 SELECT 
-                    d.brg_kode, 
+                    d.min_kode, 
                     b.brg_nama, 
                     b.brg_satuan, 
-                    d.brg_qty
+                    d.min_qty
                 FROM kencanaprint.tgarmenminta_dtl d
-                LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.brg_kode
+                LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.min_kode
                 WHERE d.min_nomor = ?
             `;
             const [detailRows] = await pool.query(detailSql, [nomor]);
