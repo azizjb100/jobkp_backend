@@ -51,7 +51,7 @@ class JobService {
       LEFT JOIN bsmcabang.job_user AS u_teknisi ON jb.jb_teknisi = u_teknisi.user_kode
       LEFT JOIN bsmcabang.job_user AS u_teknisi2 ON jb.jb_teknisi2 = u_teknisi2.user_kode
       LEFT JOIN bsmcabang.job_user AS u_konfirtek ON jb.jb_konfirteknisi_nama = u_konfirtek.user_kode
-      LEFT JOIN kencanaprint.tgarmenminta_hdr AS spp ON jb.jb_nomor = spp.mins_spk_nomor
+      LEFT JOIN kencanaprint.tgarmenminta_hdr AS spp ON jb.jb_nomor = spp.min_spk_nomor
       WHERE 1=1
     `;
 
@@ -126,7 +126,7 @@ class JobService {
         FROM bsmcabang.job_butuh_hdr h
         LEFT JOIN bsmcabang.job_user u ON u.user_kode = h.jb_user 
         LEFT JOIN bsmcabang.job_user t ON t.user_kode = h.jb_teknisi
-        LEFT JOIN kencanaprint.tgarmenminta_hdr j ON j.min_job = h.jb_nomor
+        LEFT JOIN kencanaprint.tgarmenminta_hdr j ON j.min_spk_nomor = h.jb_nomor
         WHERE h.jb_nomor = ?;
     `;
     
