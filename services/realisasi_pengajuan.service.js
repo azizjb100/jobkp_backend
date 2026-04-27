@@ -31,13 +31,13 @@ async function getRealisasiList(filters) {
 
   // Logika filter status (lebih bersih daripada di Delphi)
   if (status.toUpperCase() === 'APPROVED') {
-    sql += ' AND h.spr_approve <> ""';
+    sql += ' AND h.re_approve <> ""';
   } else if (status.toUpperCase() === 'PENDING') {
-    sql += ' AND h.spr_approve = ""';
+    sql += ' AND h.re_approve = ""';
   }
   // Jika 'ALL', tidak perlu filter tambahan
 
-  sql += ' ORDER BY h.spr_tanggal DESC';
+  sql += ' ORDER BY h.re_tanggal DESC';
   
   const [rows] = await pool.query(sql, params);
   return rows;
@@ -50,14 +50,14 @@ async function getRealisasiList(filters) {
 async function getRealisasiDetails(nomor) {
   const sql = `
     SELECT 
-        d.sprd_kode AS kode,
-        b.sp_nama AS nama,
-        b.sp_satuan AS satuan,
+        d.red_brg_kode AS kode,
+        b.brg_nama AS nama,
+        b.brg_satuan AS satuan,
         d.red_jumlah AS qty,
         d.red_ket AS ket
     FROM kencanaprint.tgarmenrealisasi_dtl d
-    LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.sprd_kode
-    WHERE d.sprd_nomor = ?
+    LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.red_brg_kode
+    WHERE d.red_nomor = ?
   `;
   
   const [rows] = await pool.query(sql, [nomor]);
@@ -76,10 +76,10 @@ async function approveRealisasi(nomor, approverName) {
   const sql = `
     UPDATE kencanaprint.tgarmenrealisasi_hdr 
     SET 
-        spr_approve = ?,
-        spr_dtapprove = NOW()
+        re_approve = ?,
+        re_dtapprove = NOW()
     WHERE 
-        spr_nomor = ?
+        re_nomor = ?
   `;
   
   const [result] = await pool.execute(sql, [approverName, nomor]);
