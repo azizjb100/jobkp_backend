@@ -1,11 +1,11 @@
-// File: services/pengajuan.service.js (VERSI FINAL YANG DIPERBAIKI)
+// File: services/pengajuan.service.js
 
 const { pool } = require('../config/db.config');
 
 class PengajuanService {
 
     async getPengajuanList(filters) {
-        // [PERBAIKAN 1] Ambil 'search' dari filters
+        console.log(`[PengajuanService] Mengambil daftar pengajuan. Filter:`, JSON.stringify(filters));
         const { startDate, endDate, status, search } = filters;
 
         let sql = `
@@ -28,58 +28,65 @@ class PengajuanService {
             params.push(status);
         }
 
-        // [PERBAIKAN 2] Tambahkan logika filter pencarian
         if (search && search.trim() !== '') {
             sql += ` AND (
                 h.min_nomor LIKE ? OR 
                 h.min_job LIKE ? OR 
                 h.min_ket LIKE ?
             )`;
-            // Tambahkan 3 parameter 'LIKE' ke array params
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm, searchTerm);
         }
         
         sql += ' ORDER BY h.min_tanggal DESC';
 
-        const [rows] = await pool.query(sql, params);
-        return rows;
+        try {
+            const [rows] = await pool.query(sql, params);
+            console.log(`[PengajuanService] Berhasil mengambil ${rows.length} data pengajuan.`);
+            return rows;
+        } catch (error) {
+            console.error(`[PengajuanService] Error pada getPengajuanList:`, error.message);
+            throw error;
+        }
     }
 
-
     async getPengajuanById(nomor) {
-        // ... (Fungsi ini sudah benar, tidak diubah)
+        console.log(`[PengajuanService] Mencari pengajuan detail. Nomor: ${nomor}`);
         const headerSql = `
             SELECT h.*, DAY(h.min_tanggal) AS hari, MONTH(h.min_tanggal) AS bulan, YEAR(h.min_tanggal) AS tahun
             FROM kencanaprint.tgarmenminta_hdr h
             WHERE h.min_nomor = ?
         `;
-        const [headerRows] = await pool.query(headerSql, [nomor]);
-        if (headerRows.length === 0) {
-            throw new Error('Nomor pengajuan tidak ditemukan.');
+        
+        try {
+            const [headerRows] = await pool.query(headerSql, [nomor]);
+            if (headerRows.length === 0) {
+                console.warn(`[PengajuanService] Pengajuan ${nomor} tidak ditemukan.`);
+                throw new Error('Nomor pengajuan tidak ditemukan.');
+            }
+
+            const detailSql = `
+                SELECT d.sppd_kode, b.sp_nama, b.sp_satuan, d.sppd_qty
+                FROM kencanaprint.tsparepart_pengajuan_dtl d
+                LEFT JOIN kencanaprint.tsparepart b ON b.sp_kode = d.sppd_kode
+                WHERE d.sppd_nomor = ?
+            `;
+            const [detailRows] = await pool.query(detailSql, [nomor]);
+            
+            console.log(`[PengajuanService] Pengajuan ${nomor} ditemukan dengan ${detailRows.length} item detail.`);
+            return { header: headerRows[0], details: detailRows };
+        } catch (error) {
+            console.error(`[PengajuanService] Error pada getPengajuanById:`, error.message);
+            throw error;
         }
-        const detailSql = `
-            SELECT d.sppd_kode, b.sp_nama, b.sp_satuan, d.sppd_qty
-            FROM kencanaprint.tsparepart_pengajuan_dtl d
-            LEFT JOIN kencanaprint.tsparepart b ON b.sp_kode = d.sppd_kode
-            WHERE d.sppd_nomor = ?
-        `;
-        const [detailRows] = await pool.query(detailSql, [nomor]);
-        return { header: headerRows[0], details: detailRows };
     }
 
-    /**
-     * Fungsi internal untuk generate nomor baru (sesuai getnomor)
-     */
     async _generateNomor(connection, transactionDate) {
-        if (!connection) {
-             throw new Error("_generateNomor harus dipanggil dari dalam transaction.");
-        }
-        
-        // [FIX] Ambil tahun dari tanggal transaksi
         const tahun = transactionDate.getFullYear();
         const prefix = `SPP-${tahun}`;
         const searchPattern = `${prefix}-%`;
+        
+        console.log(`[PengajuanService] Menghasilkan nomor baru untuk tahun ${tahun}...`);
         
         const sql = `
             SELECT IFNULL(MAX(CAST(SUBSTRING_INDEX(spp_nomor, '-', -1) AS UNSIGNED)), 0) AS jumlah 
@@ -87,74 +94,65 @@ class PengajuanService {
         `;
         
         const [rows] = await connection.query(sql, [searchPattern]);
-        
-        // [PERBAIKAN]
-        // Paksa 'jumlah' (yang mungkin string) menjadi Angka (Number) sebelum ditambah 1
         const nextSequence = Number(rows[0].jumlah || 0) + 1;
-        
         const formattedSequence = String(nextSequence).padStart(5, '0');
-        return `${prefix}-${formattedSequence}`;
+        const finalNomor = `${prefix}-${formattedSequence}`;
+        
+        console.log(`[PengajuanService] Nomor baru digenerate: ${finalNomor}`);
+        return finalNomor;
     }
 
-    /**
-     * Fungsi yang dipanggil "SAAT SAVE"
-     * (Logika ini sudah benar, menggunakan tanggal server)
-     */
     async savePengajuan(data, userKode) {
         const { header, details } = data;
         const isNew = !header.spp_nomor; 
+        console.log(`[PengajuanService] Menyimpan pengajuan. Mode: ${isNew ? 'INSERT' : 'UPDATE'}. User: ${userKode}`);
 
         const connection = await pool.getConnection();
         await connection.beginTransaction();
 
         try {
             let nomorPengajuan = header.spp_nomor;
-            
-            // Tentukan tanggal transaksi SEKARANG di server
             const transactionDate = new Date();
 
             if (isNew) {
-                // Kirim tanggal transaksi ke generator nomor
                 nomorPengajuan = await this._generateNomor(connection, transactionDate); 
-                
                 const insertHeaderSql = `
                     INSERT INTO kencanaprint.tgarmenminta_hdr 
                         (spp_nomor, spp_tanggal, spp_job, spp_ket, user_create, date_create, spp_status)
                     VALUES (?, ?, ?, ?, ?, NOW(), 'BELUM')
                 `;
                 await connection.query(insertHeaderSql, [
-                    nomorPengajuan, 
-                    transactionDate, // Gunakan tanggal server
-                    header.spp_job, 
-                    header.spp_ket, 
-                    userKode
+                    nomorPengajuan, transactionDate, header.spp_job, header.spp_ket, userKode
                 ]);
+                console.log(`[PengajuanService] Header baru berhasil disimpan: ${nomorPengajuan}`);
             } else {
-                // Logika Update
-                nomorPengajuan = header.spp_nomor;
                 const updateHeaderSql = `
                     UPDATE kencanaprint.tgarmenminta_hdr SET
                         spp_ket = ?, user_modified = ?, date_modified = NOW()
                     WHERE spp_nomor = ?
                 `;
                 await connection.query(updateHeaderSql, [header.spp_ket, userKode, nomorPengajuan]);
+                console.log(`[PengajuanService] Header berhasil diperbarui: ${nomorPengajuan}`);
             }
             
             // Hapus detail lama & simpan detail baru
+            console.log(`[PengajuanService] Memperbarui detail item untuk ${nomorPengajuan}`);
             await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_dtl WHERE sppd_nomor = ?', [nomorPengajuan]);
 
             if (details && details.length > 0) {
                 const detailValues = details.map(d => [nomorPengajuan, d.sppd_kode, d.sppd_qty]);
                 const insertDetailSql = 'INSERT INTO kencanaprint.tsparepart_pengajuan_dtl (sppd_nomor, sppd_kode, sppd_qty) VALUES ?';
                 await connection.query(insertDetailSql, [detailValues]);
+                console.log(`[PengajuanService] Berhasil menyimpan ${details.length} item detail.`);
             }
 
             await connection.commit();
+            console.log(`[PengajuanService] Transaksi berhasil di-commit.`);
             return { success: true, message: 'Data berhasil disimpan', nomor: nomorPengajuan };
 
         } catch (error) {
             await connection.rollback();
-            console.error("Error di savePengajuan service:", error);
+            console.error(`[PengajuanService] Transaksi di-rollback! Error:`, error.message);
             throw error;
         } finally {
             connection.release();
@@ -162,12 +160,17 @@ class PengajuanService {
     }
 
     async deletePengajuan(nomor) {
-        // ... (Fungsi ini sudah benar, tidak diubah)
+        console.log(`[PengajuanService] Mencoba menghapus pengajuan: ${nomor}`);
         const [rows] = await pool.query('SELECT spp_status FROM kencanaprint.tgarmenminta_hdr WHERE spp_nomor = ?', [nomor]);
-        if (rows.length === 0) throw new Error("Nomor tidak ditemukan.");
+        
+        if (rows.length === 0) {
+            console.warn(`[PengajuanService] Hapus gagal: Nomor ${nomor} tidak ada.`);
+            throw new Error("Nomor tidak ditemukan.");
+        }
         
         const status = rows[0].spp_status ? rows[0].spp_status.toUpperCase() : "BELUM";
         if (status === 'PROSES' || status === 'CLOSE') {
+            console.warn(`[PengajuanService] Hapus ditolak: Pengajuan ${nomor} berstatus ${status}.`);
             throw new Error(`Tidak bisa dihapus. Status sudah ${status}.`);
         }
 
@@ -178,10 +181,11 @@ class PengajuanService {
             await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_dtl WHERE sppd_nomor = ?', [nomor]);
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_hdr WHERE spp_nomor = ?', [nomor]);
             await connection.commit();
+            console.log(`[PengajuanService] Pengajuan ${nomor} berhasil dihapus.`);
             return { success: true, message: 'Berhasil dihapus.' };
         } catch (error) {
             await connection.rollback();
-            console.error("Error di deletePengajuan service:", error);
+            console.error(`[PengajuanService] Error saat menghapus ${nomor}:`, error.message);
             throw error;
         } finally {
             connection.release();
@@ -189,21 +193,23 @@ class PengajuanService {
     }
 
     async getJobDetailsForPengajuan(jobNomor) {
-        // ... (Fungsi ini sudah benar, tidak diubah)
+        console.log(`[PengajuanService] Mengambil rincian kebutuhan dari Job: ${jobNomor}`);
         const sql = `
-            SELECT 
-                jbd_kode,
-                jbd_nama, 
-                jbd_satuan, 
-                jbd_qty
+            SELECT jbd_kode, jbd_nama, jbd_satuan, jbd_qty
             FROM bsmcabang.job_butuh_dtl
             WHERE jbd_nomor = ?
         `;
-        const [rows] = await pool.query(sql, [jobNomor]);
-        return rows; 
+        try {
+            const [rows] = await pool.query(sql, [jobNomor]);
+            return rows; 
+        } catch (error) {
+            console.error(`[PengajuanService] Error getJobDetailsForPengajuan:`, error.message);
+            throw error;
+        }
     }
 
     async getAvailableJobs() {
+        console.log(`[PengajuanService] Mengambil daftar Job yang siap untuk diajukan sparepart...`);
         const sql = `
             SELECT jb_nomor AS Nomor,
                 CONCAT('Tanggal: ', DATE_FORMAT(jb_tanggal, '%d-%m-%Y %T'), '\\r\\n',
@@ -220,7 +226,7 @@ class PengajuanService {
     }
 
     async getAvailableSpareparts() {
-        // ... (Fungsi ini sudah benar, tidak diubah)
+        console.log(`[PengajuanService] Fetching master sparepart & stok...`);
         const sql = `
             SELECT sp_kode, sp_nama, sp_satuan,
                 IFNULL((SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
