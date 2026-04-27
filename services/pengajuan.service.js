@@ -230,17 +230,32 @@ class PengajuanService {
     }
 
     async getAvailableSpareparts() {
-        console.log(`[PengajuanService] Fetching master sparepart & stok...`);
-        const sql = `
-            SELECT brg_kode, brg_nama, brg_satuan,
-                IFNULL((SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
-                        FROM kencanaprint.tmasterstok_sparepart m 
-                        WHERE m.mst_aktif="Y" AND m.mst_brg_kode=brg_kode), 0) AS stok
-            FROM kencanaprint.tgarmen_brg ORDER BY brg_nama
-        `;
+    console.log(`[PengajuanService] Fetching master sparepart & stok...`);
+    const sql = `
+        SELECT 
+            brg_kode, 
+            brg_nama, 
+            brg_satuan,
+            IFNULL((
+                SELECT SUM(m.mst_stok_in - m.mst_stok_out) 
+                FROM kencanaprint.tmasterstok_sparepart m 
+                WHERE m.mst_aktif = 'Y' 
+                AND m.mst_brg_kode = h.brg_kode
+            ), 0) AS stok
+        FROM kencanaprint.tgarmen_brg h
+        WHERE h.brg_jenis = 'SPAREPART' -- WHERE harus sebelum ORDER BY
+        ORDER BY h.brg_nama ASC
+    `;
+    
+    try {
         const [rows] = await pool.query(sql);
+        console.log(`[PengajuanService] Berhasil mengambil ${rows.length} item sparepart.`);
         return rows;
+    } catch (error) {
+        console.error(`[PengajuanService] Error pada getAvailableSpareparts:`, error.message);
+        throw error;
     }
+}
 }
 
 module.exports = new PengajuanService();
