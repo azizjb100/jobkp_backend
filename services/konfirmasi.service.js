@@ -35,7 +35,7 @@ class JobService {
           IFNULL(u_konfirtek.user_nama, '')
         ) AS jb_konfir_teknisi,
         IF(jb.jb_pengajuan=0,'Tidak','Ya') AS jb_pengajuan_barang,
-        IFNULL(spp.spp_nomor, '-') AS jb_sparepart_gudang,
+        IFNULL(spp.min_nomor, '-') AS jb_sparepart_gudang,
         jb.jb_ket_teknisi,
         CONCAT(
           IF(jb.jb_selesai=0,'Belum ',
