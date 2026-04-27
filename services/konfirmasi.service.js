@@ -57,7 +57,7 @@ class JobService {
       LEFT JOIN bsmcabang.job_user AS u_teknisi ON jb.jb_teknisi = u_teknisi.user_kode
       LEFT JOIN bsmcabang.job_user AS u_teknisi2 ON jb.jb_teknisi2 = u_teknisi2.user_kode
       LEFT JOIN bsmcabang.job_user AS u_konfirtek ON jb.jb_konfirteknisi_nama = u_konfirtek.user_kode
-      LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr AS spp ON jb.jb_nomor = spp.spp_job
+      LEFT JOIN kencanaprint.tgarmenminta_hdr AS spp ON jb.jb_nomor = spp.mins_spk_nomor
       
       WHERE 1=1
     `;
@@ -128,13 +128,13 @@ async getJobById(id) {
         SELECT 
             h.*, 
             IF(h.jb_pengajuan = 1, 'Ya', 'Tidak') as pengajuanBarang,
-            j.spp_nomor,
+            j.min_nomor,
             u.user_nama,
             IFNULL(t.user_nama, '') as nama_teknisi
         FROM bsmcabang.job_butuh_hdr h
         LEFT JOIN bsmcabang.job_user u ON u.user_kode = h.jb_user 
         LEFT JOIN bsmcabang.job_user t ON t.user_kode = h.jb_teknisi
-        LEFT JOIN kencanaprint.tsparepart_pengajuan_hdr j ON j.spp_job = h.jb_nomor
+        LEFT JOIN kencanaprint.tgarmenminta_hdr j ON j.min_job = h.jb_nomor
         WHERE h.jb_nomor = ?;
     `;
     const [headerRows] = await pool.query(headerQuery, [id]);

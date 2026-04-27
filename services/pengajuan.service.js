@@ -17,30 +17,30 @@ class PengajuanService {
                     'Keterangan: ', IFNULL(spp_ket, ''), '\\r\\n',
                     'Status: ', IFNULL(spp_status, '')
                 ) AS Detail
-            FROM kencanaprint.tsparepart_pengajuan_hdr h
-            LEFT JOIN bsmcabang.job_butuh_hdr j ON j.jb_nomor = h.spp_job
-            WHERE DATE(h.spp_tanggal) BETWEEN ? AND ?
+            FROM kencanaprint.tgarmenminta_hdr h
+            LEFT JOIN bsmcabang.job_butuh_hdr j ON j.jb_nomor = h.min_job
+            WHERE DATE(h.min_tanggal) BETWEEN ? AND ?
         `;
         const params = [startDate, endDate];
 
         if (status && status.toUpperCase() !== 'ALL') {
-            sql += ' AND h.spp_status = ?';
+            sql += ' AND h.min_status = ?';
             params.push(status);
         }
 
         // [PERBAIKAN 2] Tambahkan logika filter pencarian
         if (search && search.trim() !== '') {
             sql += ` AND (
-                h.spp_nomor LIKE ? OR 
-                h.spp_job LIKE ? OR 
-                h.spp_ket LIKE ?
+                h.min_nomor LIKE ? OR 
+                h.min_job LIKE ? OR 
+                h.min_ket LIKE ?
             )`;
             // Tambahkan 3 parameter 'LIKE' ke array params
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm, searchTerm);
         }
         
-        sql += ' ORDER BY h.spp_tanggal DESC';
+        sql += ' ORDER BY h.min_tanggal DESC';
 
         const [rows] = await pool.query(sql, params);
         return rows;
@@ -50,9 +50,9 @@ class PengajuanService {
     async getPengajuanById(nomor) {
         // ... (Fungsi ini sudah benar, tidak diubah)
         const headerSql = `
-            SELECT h.*, DAY(h.spp_tanggal) AS hari, MONTH(h.spp_tanggal) AS bulan, YEAR(h.spp_tanggal) AS tahun
-            FROM kencanaprint.tsparepart_pengajuan_hdr h
-            WHERE h.spp_nomor = ?
+            SELECT h.*, DAY(h.min_tanggal) AS hari, MONTH(h.min_tanggal) AS bulan, YEAR(h.min_tanggal) AS tahun
+            FROM kencanaprint.tgarmenminta_hdr h
+            WHERE h.min_nomor = ?
         `;
         const [headerRows] = await pool.query(headerSql, [nomor]);
         if (headerRows.length === 0) {
@@ -83,7 +83,7 @@ class PengajuanService {
         
         const sql = `
             SELECT IFNULL(MAX(CAST(SUBSTRING_INDEX(spp_nomor, '-', -1) AS UNSIGNED)), 0) AS jumlah 
-            FROM kencanaprint.tsparepart_pengajuan_hdr WHERE spp_nomor LIKE ?
+            FROM kencanaprint.tgarmenminta_hdr WHERE spp_nomor LIKE ?
         `;
         
         const [rows] = await connection.query(sql, [searchPattern]);
@@ -118,7 +118,7 @@ class PengajuanService {
                 nomorPengajuan = await this._generateNomor(connection, transactionDate); 
                 
                 const insertHeaderSql = `
-                    INSERT INTO kencanaprint.tsparepart_pengajuan_hdr 
+                    INSERT INTO kencanaprint.tgarmenminta_hdr 
                         (spp_nomor, spp_tanggal, spp_job, spp_ket, user_create, date_create, spp_status)
                     VALUES (?, ?, ?, ?, ?, NOW(), 'BELUM')
                 `;
@@ -133,7 +133,7 @@ class PengajuanService {
                 // Logika Update
                 nomorPengajuan = header.spp_nomor;
                 const updateHeaderSql = `
-                    UPDATE kencanaprint.tsparepart_pengajuan_hdr SET
+                    UPDATE kencanaprint.tgarmenminta_hdr SET
                         spp_ket = ?, user_modified = ?, date_modified = NOW()
                     WHERE spp_nomor = ?
                 `;
@@ -163,7 +163,7 @@ class PengajuanService {
 
     async deletePengajuan(nomor) {
         // ... (Fungsi ini sudah benar, tidak diubah)
-        const [rows] = await pool.query('SELECT spp_status FROM kencanaprint.tsparepart_pengajuan_hdr WHERE spp_nomor = ?', [nomor]);
+        const [rows] = await pool.query('SELECT spp_status FROM kencanaprint.tgarmenminta_hdr WHERE spp_nomor = ?', [nomor]);
         if (rows.length === 0) throw new Error("Nomor tidak ditemukan.");
         
         const status = rows[0].spp_status ? rows[0].spp_status.toUpperCase() : "BELUM";
@@ -176,7 +176,7 @@ class PengajuanService {
 
         try {
             await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_dtl WHERE sppd_nomor = ?', [nomor]);
-            await connection.query('DELETE FROM kencanaprint.tsparepart_pengajuan_hdr WHERE spp_nomor = ?', [nomor]);
+            await connection.query('DELETE FROM kencanaprint.tgarmenminta_hdr WHERE spp_nomor = ?', [nomor]);
             await connection.commit();
             return { success: true, message: 'Berhasil dihapus.' };
         } catch (error) {

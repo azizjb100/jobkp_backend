@@ -15,16 +15,16 @@ async function getRealisasiList(filters) {
 
   let sql = `
     SELECT 
-        h.spr_nomor AS nomor,
-        DATE_FORMAT(h.spr_tanggal, "%d-%m-%Y") AS tanggal,
-        h.spr_spp_nomor AS pengajuan,
-        h.spr_peminta AS peminta,
-        h.spr_approve AS apv,
-        IFNULL(DATE_FORMAT(h.spr_dtapprove, "%d-%m-%Y"), "") AS dtapv
-    FROM kencanaprint.tsparepart_realisasi_hdr h
+        h.re_nomor AS nomor,
+        DATE_FORMAT(h.re_tanggal, "%d-%m-%Y") AS tanggal,
+        h.re_spk_nomor AS pengajuan,
+        h.re_peminta AS peminta,
+        h.re_approve AS apv,
+        IFNULL(DATE_FORMAT(h.re_dtapprove, "%d-%m-%Y"), "") AS dtapv
+    FROM kencanaprint.tgarmenrealisasi_hdr h
     WHERE 
-        h.spr_spp_nomor <> ""
-        AND DATE(h.spr_tanggal) BETWEEN ? AND ?
+        h.re_spp_nomor <> ""
+        AND DATE(h.re_tanggal) BETWEEN ? AND ?
   `;
   
   const params = [startDate, endDate];
@@ -53,10 +53,10 @@ async function getRealisasiDetails(nomor) {
         d.sprd_kode AS kode,
         b.sp_nama AS nama,
         b.sp_satuan AS satuan,
-        d.sprd_qty AS qty,
-        d.sprd_ket AS ket
-    FROM kencanaprint.tsparepart_realisasi_dtl d
-    LEFT JOIN kencanaprint.tsparepart b ON b.sp_kode = d.sprd_kode
+        d.red_jumlah AS qty,
+        d.red_ket AS ket
+    FROM kencanaprint.tgarmenrealisasi_dtl d
+    LEFT JOIN kencanaprint.tgarmen_brg b ON b.brg_kode = d.sprd_kode
     WHERE d.sprd_nomor = ?
   `;
   
@@ -74,7 +74,7 @@ async function approveRealisasi(nomor, approverName) {
   }
 
   const sql = `
-    UPDATE kencanaprint.tsparepart_realisasi_hdr 
+    UPDATE kencanaprint.tgarmenrealisasi_hdr 
     SET 
         spr_approve = ?,
         spr_dtapprove = NOW()
