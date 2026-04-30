@@ -147,7 +147,7 @@ class PengajuanService {
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
             if (details && details.length > 0) {
-                const detailValues = details.map(d => [nomorPengajuan, d.mind_brg_kode, d.mind_jumlah]);
+                const detailValues = details.map(d => [nomorPengajuan, d.brg_kode, d.brg_qty]);
                 await connection.query(
                     'INSERT INTO kencanaprint.tgarmenminta_dtl (mind_nomor, mind_brg_kode, mind_jumlah) VALUES ?',
                     [detailValues]
