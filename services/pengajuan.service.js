@@ -133,7 +133,7 @@ class PengajuanService {
                     VALUES (?, ?, ?, ?, ?, NOW(), 0)
                 `;
                 await connection.query(insertHeaderSql, [
-                    nomorPengajuan, transactionDate, header.spp_job, header.spp_ket, userKode
+                    nomorPengajuan, transactionDate, header.min_spk_nomor, header.min_ket, userKode
                 ]);
             } else {
                 const updateHeaderSql = `
@@ -141,7 +141,7 @@ class PengajuanService {
                         min_ket = ?, user_modified = ?, date_modified = NOW()
                     WHERE min_nomor = ?
                 `;
-                await connection.query(updateHeaderSql, [header.spp_ket, userKode, nomorPengajuan]);
+                await connection.query(updateHeaderSql, [header.min_ket, userKode, nomorPengajuan]);
             }
             
             await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
