@@ -141,7 +141,7 @@ async savePengajuan(data, userKode) {
             // 3. Insert ke table header kencanaprint
             const insertHeaderSql = `
                 INSERT INTO kencanaprint.tgarmenminta_hdr 
-                    (min_nomor, min_tanggal, min_spk_nomor, min_jenis, min_cabang, min_ket, user_create, date_create, min_close)
+                    (min_nomor, min_tanggal, min_spk_nomor, min_jenis, min_cab, min_ket, user_create, date_create, min_close)
                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0)
             `;
             
