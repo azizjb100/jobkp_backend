@@ -23,7 +23,8 @@ class PengajuanService {
                 ) AS Detail
             FROM kencanaprint.tgarmenminta_hdr h
             LEFT JOIN bsmcabang.job_butuh_hdr j ON j.jb_nomor = h.min_spk_nomor
-            WHERE DATE(h.min_tanggal) BETWEEN ? AND ?
+            WHERE h.min_jenis ='SPAREPART'
+                AND DATE(h.min_tanggal) BETWEEN ? AND ?
         `;
         const params = [startDate, endDate];
 
@@ -73,7 +74,7 @@ class PengajuanService {
                     ELSE 'BELUM'
                 END AS spp_status
             FROM kencanaprint.tgarmenminta_hdr
-            WHERE min_nomor = ?
+            WHERE min_nomor = ? 
         `;
         
         try {
