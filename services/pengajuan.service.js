@@ -115,9 +115,8 @@ class PengajuanService {
         return `${prefix}-${String(nextSequence).padStart(5, '0')}`;
     }
 
-  async savePengajuan(data, userKode) {
+async savePengajuan(data, userKode) {
     const { header, details } = data;
-    // Gunakan min_nomor sesuai yang dikirim dari Flutter
     const isNew = !header.min_nomor || header.min_nomor === '[BARU]'; 
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -127,19 +126,19 @@ class PengajuanService {
         const transactionDate = new Date();
 
         if (isNew) {
-            // 1. Ambil jb_cabang dari tabel job (Contoh: tjob)
-            // Sesuaikan nama tabel 'kencanaprint.tjob' dengan skema Anda
+            // 1. Ambil jb_cabang dari database bsmcabang
             const [jobData] = await connection.query(
-                'SELECT jb_cabang FROM kencanaprint.tjob WHERE jb_nomor = ?', 
+                'SELECT jb_cabang FROM bsmcabang.job_butuh_hdr WHERE jb_nomor = ?', 
                 [header.min_spk_nomor]
             );
 
+            // Jika ditemukan ambil cabangnya, jika tidak beri string kosong
             const cabang = (jobData.length > 0) ? jobData[0].jb_cabang : '';
 
-            // 2. Generate nomor pengajuan baru
+            // 2. Generate nomor pengajuan (SPP) baru
             nomorPengajuan = await this._generateNomor(connection, transactionDate); 
 
-            // 3. Insert Header dengan min_jenis dan min_cabang
+            // 3. Insert ke table header kencanaprint
             const insertHeaderSql = `
                 INSERT INTO kencanaprint.tgarmenminta_hdr 
                     (min_nomor, min_tanggal, min_spk_nomor, min_jenis, min_cabang, min_ket, user_create, date_create, min_close)
@@ -150,13 +149,13 @@ class PengajuanService {
                 nomorPengajuan, 
                 transactionDate, 
                 header.min_spk_nomor, 
-                'SPAREPART',      // min_jenis statis
-                cabang,            // min_cabang hasil query
-                header.min_ket,    // min_ket dari input keterangan
+                'SPAREPART',      // Jenis sesuai permintaan
+                cabang,            // Cabang otomatis dari bsmcabang
+                header.min_ket,    // Keterangan dari input user
                 userKode
             ]);
         } else {
-            // Update Header (biasanya jenis dan cabang tidak berubah saat edit)
+            // Jika Edit, hanya update keterangan (dan log user modified)
             const updateHeaderSql = `
                 UPDATE kencanaprint.tgarmenminta_hdr SET
                     min_ket = ?, user_modified = ?, date_modified = NOW()
@@ -165,7 +164,7 @@ class PengajuanService {
             await connection.query(updateHeaderSql, [header.min_ket, userKode, nomorPengajuan]);
         }
         
-        // 4. Olah Detail (Hapus lama, masukkan baru)
+        // 4. Proses Simpan Detail (Hapus yang lama dulu)
         await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
         if (details && details.length > 0) {
@@ -185,7 +184,6 @@ class PengajuanService {
         connection.release();
     }
 }
-
     async deletePengajuan(nomor) {
         console.log(`[PengajuanService] Mencoba menghapus pengajuan: ${nomor}`);
         const [rows] = await pool.query('SELECT min_close FROM kencanaprint.tgarmenminta_hdr WHERE min_nomor = ?', [nomor]);
