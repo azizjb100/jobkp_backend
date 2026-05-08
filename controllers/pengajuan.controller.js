@@ -33,28 +33,38 @@ class PengajuanController {
     }
 
     async save(req, res) {
-        try {
+    try {
+        // [SYNC] Ambil nama dari req.user.nama sesuai middleware auth
+        const userNama = req.user?.nama; 
+        const userKode = req.user?.userId;
 
-            const userKode = req.user?.userId;
-
-            if (!userKode) {
-                return res.status(401).json({ success: false, message: 'Akses ditolak. User tidak terotentikasi.' });
-            }
-
-            const userNama = req.user?.userName; // Pastikan userNama diambil dari request user
-            const result = await pengajuanService.savePengajuan(req.body, userNama);
-            
-            // [PERBAIKAN] Kirim status code yang tepat.
-            // 201 (Created) jika ini data baru, 200 (OK) jika ini update.
-            const isNew = !req.body.header.spp_nomor;
-            const statusCode = isNew ? 201 : 200;
-            
-            res.status(statusCode).json(result); // 'result' sudah { success: true, ... }
-            
-        } catch (error) {
-            res.status(500).json({ success: false, message: error.message });
+        // Validasi Otentikasi
+        if (!userKode || !userNama) {
+            return res.status(401).json({ 
+                success: false, 
+                message: 'Akses ditolak. Sesi user tidak ditemukan.' 
+            });
         }
+
+        // Panggil Service (Kirim data dan userNama)
+        const result = await pengajuanService.savePengajuan(req.body, userNama);
+        
+        // Cek status code (201 untuk baru, 200 untuk update)
+        // Sesuaikan pengecekan dengan field 'min_nomor' dari Flutter
+        const header = req.body.header || {};
+        const isNew = !header.min_nomor || header.min_nomor === '[BARU]';
+        const statusCode = isNew ? 201 : 200;
+        
+        return res.status(statusCode).json(result);
+        
+    } catch (error) {
+        console.error(`[PengajuanController] Error:`, error.message);
+        return res.status(500).json({ 
+            success: false, 
+            message: error.message 
+        });
     }
+}
 
     async delete(req, res) {
         try {

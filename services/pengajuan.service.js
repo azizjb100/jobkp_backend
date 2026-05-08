@@ -180,6 +180,7 @@ async savePengajuan(data, userNama) { // Ubah nama parameter agar jelas (userNam
         connection.release();
     }
 }
+
     async deletePengajuan(nomor) {
         console.log(`[PengajuanService] Mencoba menghapus pengajuan: ${nomor}`);
         const [rows] = await pool.query('SELECT min_close FROM kencanaprint.tgarmenminta_hdr WHERE min_nomor = ?', [nomor]);
