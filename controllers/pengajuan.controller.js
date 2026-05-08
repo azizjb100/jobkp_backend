@@ -41,7 +41,8 @@ class PengajuanController {
                 return res.status(401).json({ success: false, message: 'Akses ditolak. User tidak terotentikasi.' });
             }
 
-            const result = await pengajuanService.savePengajuan(req.body, userKode);
+            const userNama = req.user?.userName; // Pastikan userNama diambil dari request user
+            const result = await pengajuanService.savePengajuan(req.body, userNama);
             
             // [PERBAIKAN] Kirim status code yang tepat.
             // 201 (Created) jika ini data baru, 200 (OK) jika ini update.

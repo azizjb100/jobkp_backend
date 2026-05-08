@@ -115,7 +115,7 @@ class PengajuanService {
         return `${prefix}-${String(nextSequence).padStart(5, '0')}`;
     }
 
-async savePengajuan(data, userKode) {
+async savePengajuan(data, userNama) { // Ubah nama parameter agar jelas (userNama)
     const { header, details } = data;
     const isNew = !header.min_nomor || header.min_nomor === '[BARU]'; 
     const connection = await pool.getConnection();
@@ -126,44 +126,42 @@ async savePengajuan(data, userKode) {
         const transactionDate = new Date();
 
         if (isNew) {
-            // 1. Ambil jb_cabang dari database bsmcabang
             const [jobData] = await connection.query(
                 'SELECT jb_cabang FROM bsmcabang.job_butuh_hdr WHERE jb_nomor = ?', 
                 [header.min_spk_nomor]
             );
 
-            // Jika ditemukan ambil cabangnya, jika tidak beri string kosong
             const cabang = (jobData.length > 0) ? jobData[0].jb_cabang : '';
-
-            // 2. Generate nomor pengajuan (SPP) baru
             nomorPengajuan = await this._generateNomor(connection, transactionDate); 
 
-            // 3. Insert ke table header kencanaprint
+            // TAMBAHKAN kolom min_bagian dan pastikan user_create menerima userNama
             const insertHeaderSql = `
                 INSERT INTO kencanaprint.tgarmenminta_hdr 
-                    (min_nomor, min_tanggal, min_spk_nomor, min_jenis, min_cab, min_ket, user_create, date_create, min_close)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0)
+                    (min_nomor, min_tanggal, min_spk_nomor, min_jenis, min_cab, 
+                     min_ket, user_create, date_create, min_close, min_bagian)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), 0, ?)
             `;
             
             await connection.query(insertHeaderSql, [
                 nomorPengajuan, 
                 transactionDate, 
                 header.min_spk_nomor, 
-                'SPAREPART',      // Jenis sesuai permintaan
-                cabang,            // Cabang otomatis dari bsmcabang
-                header.min_ket,    // Keterangan dari input user
-                userKode
+                'SPAREPART',
+                cabang,
+                header.min_ket,
+                userNama,       // Sekarang mengisi kolom user_create dengan Nama
+                'TEKNISI'       // Mengisi kolom min_bagian dengan TEKNISI
             ]);
         } else {
-            // Jika Edit, hanya update keterangan (dan log user modified)
+            // Untuk EDIT, update juga user_modified dengan userNama
             const updateHeaderSql = `
                 UPDATE kencanaprint.tgarmenminta_hdr SET
                     min_ket = ?, user_modified = ?, date_modified = NOW()
                 WHERE min_nomor = ?
             `;
-            await connection.query(updateHeaderSql, [header.min_ket, userKode, nomorPengajuan]);
+            await connection.query(updateHeaderSql, [header.min_ket, userNama, nomorPengajuan]);
         }
-        await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
+                await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
         if (details && details.length > 0) {
             const detailValues = details.map(d => [nomorPengajuan, d.brg_kode, d.brg_qty]);
