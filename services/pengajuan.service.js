@@ -163,8 +163,6 @@ async savePengajuan(data, userKode) {
             `;
             await connection.query(updateHeaderSql, [header.min_ket, userKode, nomorPengajuan]);
         }
-        
-        // 4. Proses Simpan Detail (Hapus yang lama dulu)
         await connection.query('DELETE FROM kencanaprint.tgarmenminta_dtl WHERE mind_nomor = ?', [nomorPengajuan]);
 
         if (details && details.length > 0) {
